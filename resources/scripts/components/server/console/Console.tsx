@@ -49,20 +49,13 @@ const terminalProps: ITerminalOptions = {
     fontFamily: th('fontFamily.mono'),
     rows: 30,
     theme: theme,
+    rendererType: 'dom',
 };
 
 export default () => {
     const TERMINAL_PRELUDE = '\u001b[1m\u001b[33mcontainer@pterodactyl~ \u001b[0m';
     const ref = useRef<HTMLDivElement>(null);
-    const terminal = useMemo(() => {
-        const options: ITerminalOptions = { ...terminalProps };
-
-        if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) {
-            options.rendererType = 'dom';
-        }
-
-        return new Terminal(options);
-    }, []);
+    const terminal = useMemo(() => new Terminal({ ...terminalProps }), []);
     const fitAddon = useMemo(() => new FitAddon(), []);
     const searchAddon = useMemo(() => new SearchAddon(), []);
     const searchBar = useMemo(() => new SearchBarAddon({ searchAddon }), [searchAddon]);

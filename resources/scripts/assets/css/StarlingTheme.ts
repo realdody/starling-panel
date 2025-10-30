@@ -32,7 +32,7 @@ body {
     -webkit-user-select:text !important;
     user-select:text !important;
     -webkit-touch-callout:default !important;
-    touch-action:pan-y !important;
+    touch-action:auto !important;
 }
 input,textarea {
     border:none !important;
