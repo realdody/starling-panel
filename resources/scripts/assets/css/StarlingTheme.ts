@@ -27,6 +27,13 @@ export default createGlobalStyle`
 body {
     overflow-x:hidden !important;
 }
+.xterm,
+.xterm * {
+    -webkit-user-select:text !important;
+    user-select:text !important;
+    -webkit-touch-callout:default !important;
+    touch-action:pan-y !important;
+}
 input,textarea {
     border:none !important;
     outline:none !important;
@@ -648,13 +655,6 @@ select, textarea {
     }
     .authContainer:after {
         display:none;
-    }
-}
-@media (pointer: coarse) {
-    .xterm,
-    .xterm * {
-        -webkit-user-select: text !important;
-        user-select: text !important;
     }
 }
 @media(max-device-width:640px) {

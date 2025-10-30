@@ -63,11 +63,11 @@ export default () => {
 
         return new Terminal(options);
     }, []);
-    const fitAddon = new FitAddon();
-    const searchAddon = new SearchAddon();
-    const searchBar = new SearchBarAddon({ searchAddon });
-    const webLinksAddon = new WebLinksAddon();
-    const scrollDownHelperAddon = new ScrollDownHelperAddon();
+    const fitAddon = useMemo(() => new FitAddon(), []);
+    const searchAddon = useMemo(() => new SearchAddon(), []);
+    const searchBar = useMemo(() => new SearchBarAddon({ searchAddon }), [searchAddon]);
+    const webLinksAddon = useMemo(() => new WebLinksAddon(), []);
+    const scrollDownHelperAddon = useMemo(() => new ScrollDownHelperAddon(), []);
     const { connected, instance } = ServerContext.useStoreState((state) => state.socket);
     const [canSendCommands] = usePermissions(['control.console']);
     const serverId = ServerContext.useStoreState((state) => state.server.data!.id);
@@ -132,6 +132,8 @@ export default () => {
     };
 
     useEffect(() => {
+        let cleanupTextarea: (() => void) | undefined;
+
         if (connected && ref.current && !terminal.element) {
             terminal.loadAddon(fitAddon);
             terminal.loadAddon(searchAddon);
@@ -141,6 +143,42 @@ export default () => {
 
             terminal.open(ref.current);
             fitAddon.fit();
+
+            const textarea = terminal.textarea;
+            if (textarea) {
+                const previous = {
+                    inputMode: textarea.getAttribute('inputmode'),
+                    ariaHidden: textarea.getAttribute('aria-hidden'),
+                    tabIndex: textarea.getAttribute('tabindex'),
+                    pointerEvents: textarea.style.pointerEvents,
+                };
+
+                textarea.setAttribute('inputmode', 'none');
+                textarea.setAttribute('aria-hidden', 'true');
+                textarea.setAttribute('tabindex', '-1');
+                textarea.style.pointerEvents = 'none';
+                textarea.blur();
+
+                cleanupTextarea = () => {
+                    if (!textarea) return;
+                    if (previous.inputMode) {
+                        textarea.setAttribute('inputmode', previous.inputMode);
+                    } else {
+                        textarea.removeAttribute('inputmode');
+                    }
+                    if (previous.ariaHidden) {
+                        textarea.setAttribute('aria-hidden', previous.ariaHidden);
+                    } else {
+                        textarea.removeAttribute('aria-hidden');
+                    }
+                    if (previous.tabIndex) {
+                        textarea.setAttribute('tabindex', previous.tabIndex);
+                    } else {
+                        textarea.removeAttribute('tabindex');
+                    }
+                    textarea.style.pointerEvents = previous.pointerEvents;
+                };
+            }
 
             // Add support for capturing keys
             terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
@@ -157,7 +195,10 @@ export default () => {
                 return true;
             });
         }
-    }, [terminal, connected]);
+        return () => {
+            cleanupTextarea?.();
+        };
+    }, [terminal, connected, fitAddon, searchAddon, searchBar, webLinksAddon, scrollDownHelperAddon]);
 
     useEventListener(
         'resize',
