@@ -56,12 +56,25 @@
 
 .mobile_log {
     @apply bg-gray-900 text-gray-100 font-mono text-sm rounded-t p-2;
-    @apply min-h-[16rem] w-full;
+    @apply w-full;
+    height:16rem;
+    max-height:24rem;
     overflow-y:auto;
-    white-space:pre-wrap;
-    word-break:break-word;
+    display:flex;
+    flex-direction:column;
+    gap:0.25rem;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior:contain;
+}
+
+.mobile_line {
+    white-space:pre-wrap;
+    word-break:break-word;
+}
+
+.mobile_placeholder {
+    @apply text-gray-400;
+    white-space:normal;
 }
 
 .chart_container {

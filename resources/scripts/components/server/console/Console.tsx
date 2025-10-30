@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { ITerminalOptions, Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { SearchAddon } from 'xterm-addon-search';
@@ -51,34 +52,212 @@ const terminalProps: ITerminalOptions = {
     theme: theme,
 };
 
-const MAX_LOG_LINES = 800;
-const MOBILE_PRELUDE = 'container@pterodactyl~ ';
+const MAX_LOG_LINES = 300;
 const ANSI_ESCAPE_PREFIX = String.fromCharCode(27);
-const ANSI_ESCAPE_PATTERN = new RegExp(`${ANSI_ESCAPE_PREFIX}\\[[0-9;]*[A-Za-z]`, 'g');
+const ANSI_TOKEN_REGEX = new RegExp(`${ANSI_ESCAPE_PREFIX}\\[([0-9;?]*)([A-Za-z])`, 'g');
 
-const stripAnsiCodes = (value: string) => value.replace(ANSI_ESCAPE_PATTERN, '');
+const CARRIAGE_RETURN_REGEX = /\r/g;
+const BELL_CHARACTER = String.fromCharCode(7);
+const BELL_REGEX = new RegExp(BELL_CHARACTER, 'g');
 
-const useIsTouchDevice = (): boolean => {
-    const [isTouch, setIsTouch] = useState(false);
+type ConsoleSegment = {
+    text: string;
+    style?: CSSProperties;
+};
 
-    useEffect(() => {
-        const detect = () => {
-            if (typeof window === 'undefined') {
-                return false;
+type ParsedConsoleLine = {
+    id: number;
+    segments: ConsoleSegment[];
+};
+
+const ANSI_COLOR_MAP: Record<number, string> = {
+    30: theme.black,
+    31: theme.red,
+    32: theme.green,
+    33: theme.yellow,
+    34: theme.blue,
+    35: theme.magenta,
+    36: theme.cyan,
+    37: theme.white,
+    90: theme.brightBlack,
+    91: theme.brightRed,
+    92: theme.brightGreen,
+    93: theme.brightYellow,
+    94: theme.brightBlue,
+    95: theme.brightMagenta,
+    96: theme.brightCyan,
+    97: theme.brightWhite,
+};
+
+const ANSI_BACKGROUND_MAP: Record<number, string> = {
+    40: theme.black,
+    41: theme.red,
+    42: theme.green,
+    43: theme.yellow,
+    44: theme.blue,
+    45: theme.magenta,
+    46: theme.cyan,
+    47: theme.white,
+    100: theme.brightBlack,
+    101: theme.brightRed,
+    102: theme.brightGreen,
+    103: theme.brightYellow,
+    104: theme.brightBlue,
+    105: theme.brightMagenta,
+    106: theme.brightCyan,
+    107: theme.brightWhite,
+};
+
+const buildStyle = (
+    color?: string,
+    fontWeight?: CSSProperties['fontWeight'],
+    backgroundColor?: string
+): CSSProperties | undefined => {
+    if (!color && !fontWeight && !backgroundColor) {
+        return undefined;
+    }
+
+    return {
+        ...(color ? { color } : {}),
+        ...(fontWeight ? { fontWeight } : {}),
+        ...(backgroundColor ? { backgroundColor } : {}),
+    };
+};
+
+const stylesEqual = (a?: CSSProperties, b?: CSSProperties) => {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return a.color === b.color && a.fontWeight === b.fontWeight && a.backgroundColor === b.backgroundColor;
+};
+
+const mergeSegments = (segments: ConsoleSegment[]): ConsoleSegment[] => {
+    const merged: ConsoleSegment[] = [];
+
+    segments.forEach((segment) => {
+        if (!segment.text) {
+            return;
+        }
+
+        const previous = merged[merged.length - 1];
+        if (previous && stylesEqual(previous.style, segment.style)) {
+            previous.text += segment.text;
+        } else {
+            merged.push({ text: segment.text, style: segment.style });
+        }
+    });
+
+    return merged;
+};
+
+const parseAnsiSegments = (input: string): ConsoleSegment[] => {
+    const cleanInput = input.replace(CARRIAGE_RETURN_REGEX, '').replace(BELL_REGEX, '');
+    const segments: ConsoleSegment[] = [];
+    let match: RegExpExecArray | null;
+    let lastIndex = 0;
+    let currentColor: string | undefined;
+    let currentWeight: CSSProperties['fontWeight'];
+    let currentBackground: string | undefined;
+
+    const tokenRegex = new RegExp(ANSI_TOKEN_REGEX);
+
+    while ((match = tokenRegex.exec(cleanInput))) {
+        const [, codeString, command] = match;
+
+        if (match.index > lastIndex) {
+            const text = cleanInput.slice(lastIndex, match.index);
+            if (text) {
+                segments.push({ text, style: buildStyle(currentColor, currentWeight, currentBackground) });
+            }
+        }
+
+        lastIndex = tokenRegex.lastIndex;
+
+        if (command !== 'm') {
+            continue;
+        }
+
+        const codes = codeString ? codeString.split(';') : ['0'];
+        codes.forEach((codeValue) => {
+            if (!codeValue || codeValue.includes('?')) {
+                return;
             }
 
-            return (
-                'ontouchstart' in window ||
-                (navigator as any).maxTouchPoints > 0 ||
-                (navigator as any).msMaxTouchPoints > 0 ||
-                window.matchMedia?.('(pointer: coarse)').matches === true
-            );
-        };
+            const code = Number(codeValue);
+            if (Number.isNaN(code)) {
+                return;
+            }
 
-        setIsTouch(detect());
+            if (code === 0) {
+                currentColor = undefined;
+                currentWeight = undefined;
+                currentBackground = undefined;
+                return;
+            }
 
+            if (code === 1) {
+                currentWeight = 600;
+                return;
+            }
+
+            if (code === 22) {
+                currentWeight = undefined;
+                return;
+            }
+
+            if (code === 39) {
+                currentColor = undefined;
+                return;
+            }
+
+            if (code === 49) {
+                currentBackground = undefined;
+                return;
+            }
+
+            const mappedColor = ANSI_COLOR_MAP[code];
+            if (mappedColor) {
+                currentColor = mappedColor;
+                return;
+            }
+
+            const mappedBackground = ANSI_BACKGROUND_MAP[code];
+            if (mappedBackground) {
+                currentBackground = mappedBackground;
+            }
+        });
+    }
+
+    if (lastIndex < cleanInput.length) {
+        const text = cleanInput.slice(lastIndex);
+        if (text) {
+            segments.push({ text, style: buildStyle(currentColor, currentWeight, currentBackground) });
+        }
+    }
+
+    return mergeSegments(segments);
+};
+
+const detectTouchSupport = () => {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    const nav = window.navigator as Navigator & { maxTouchPoints?: number; msMaxTouchPoints?: number };
+
+    return (
+        'ontouchstart' in window ||
+        (nav.maxTouchPoints ?? 0) > 0 ||
+        (nav.msMaxTouchPoints ?? 0) > 0 ||
+        window.matchMedia?.('(pointer: coarse)').matches === true
+    );
+};
+
+const useIsTouchDevice = (): boolean => {
+    const [isTouch, setIsTouch] = useState(detectTouchSupport);
+
+    useEffect(() => {
         const mediaQuery = typeof window !== 'undefined' ? window.matchMedia('(pointer: coarse)') : null;
-        const handler = () => setIsTouch(detect());
+        const handler = () => setIsTouch(detectTouchSupport());
         mediaQuery?.addEventListener?.('change', handler);
 
         return () => mediaQuery?.removeEventListener?.('change', handler);
@@ -91,7 +270,8 @@ export default () => {
     const TERMINAL_PRELUDE = '\u001b[1m\u001b[33mcontainer@pterodactyl~ \u001b[0m';
     const ref = useRef<HTMLDivElement>(null);
     const mobileLogRef = useRef<HTMLDivElement>(null);
-    const [logLines, setLogLines] = useState<string[]>([]);
+    const lineCounter = useRef(0);
+    const [logLines, setLogLines] = useState<ParsedConsoleLine[]>([]);
     const isTouchDevice = useIsTouchDevice();
     const terminal = useMemo<Terminal | null>(() => {
         if (isTouchDevice) {
@@ -113,25 +293,25 @@ export default () => {
     const [historyIndex, setHistoryIndex] = useState(-1);
 
     const appendConsoleLine = useCallback(
-        (line: string, { prelude = false, isError = false }: { prelude?: boolean; isError?: boolean } = {}) => {
+        (line: string, { prelude = false, prefix }: { prelude?: boolean; prefix?: string } = {}) => {
             const normalized = line.replace(/(?:\r\n|\r|\n)$/im, '');
+            const composed = `${prelude ? TERMINAL_PRELUDE : ''}${prefix ?? ''}${normalized}\u001b[0m`;
 
             if (terminal && !isTouchDevice) {
-                terminal.writeln(`${prelude ? TERMINAL_PRELUDE : ''}${normalized}\u001b[0m`);
+                terminal.writeln(composed);
             }
 
             if (isTouchDevice) {
-                const stripped = stripAnsiCodes(normalized);
-                const prefix = prelude ? MOBILE_PRELUDE : '';
-                const message = `${prefix}${isError ? '[ERROR] ' : ''}${stripped}`;
+                const segments = parseAnsiSegments(composed);
+                const lineId = lineCounter.current++;
 
                 setLogLines((prev) => {
-                    const next = [...prev, message];
+                    const next = [...prev, { id: lineId, segments: segments.length ? segments : [{ text: ' ' }] }];
                     return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next;
                 });
             }
         },
-        [isTouchDevice, setLogLines, terminal, TERMINAL_PRELUDE]
+        [TERMINAL_PRELUDE, isTouchDevice, terminal]
     );
 
     const handleConsoleOutput = useCallback(
@@ -156,7 +336,7 @@ export default () => {
     );
 
     const handleDaemonErrorOutput = useCallback(
-        (line: string) => appendConsoleLine(line, { prelude: true, isError: true }),
+        (line: string) => appendConsoleLine(line, { prelude: true, prefix: '\u001b[1m\u001b[41m' }),
         [appendConsoleLine]
     );
 
@@ -254,6 +434,7 @@ export default () => {
                 if (terminal && !isTouchDevice) {
                     terminal.clear();
                 } else if (isTouchDevice) {
+                    lineCounter.current = 0;
                     setLogLines([]);
                 }
             }
@@ -282,7 +463,6 @@ export default () => {
         instance,
         isTouchDevice,
         isTransferring,
-        setLogLines,
         terminal,
     ]);
 
@@ -302,9 +482,21 @@ export default () => {
             >
                 {isTouchDevice ? (
                     <div ref={mobileLogRef} className={styles.mobile_log}>
-                        {logLines.length
-                            ? logLines.join('\n')
-                            : 'Console output will appear here once the server connects.'}
+                        {logLines.length ? (
+                            logLines.map((entry) => (
+                                <div key={entry.id} className={styles.mobile_line}>
+                                    {entry.segments.map((segment, index) => (
+                                        <span key={index} style={segment.style}>
+                                            {segment.text}
+                                        </span>
+                                    ))}
+                                </div>
+                            ))
+                        ) : (
+                            <div className={styles.mobile_placeholder}>
+                                Console output will appear here once the server connects.
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className={'h-full'}>
