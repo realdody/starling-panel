@@ -505,7 +505,7 @@ select, textarea {
     top:0;
     width:50vw;
     height:100vh;
-    background:linear-gradient(to right,#121212,transparent), url('/themes/enigma_premium/img/waves.jpg');
+    background:linear-gradient(to right,#121212,transparent), url('/themes/starling/img/waves.jpg');
     background-size:cover;
     position:fixed;
 }
@@ -648,6 +648,13 @@ select, textarea {
     }
     .authContainer:after {
         display:none;
+    }
+}
+@media (pointer: coarse) {
+    .xterm,
+    .xterm * {
+        -webkit-user-select: text !important;
+        user-select: text !important;
     }
 }
 @media(max-device-width:640px) {

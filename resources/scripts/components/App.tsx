@@ -8,7 +8,7 @@ import ProgressBar from '@/components/elements/ProgressBar';
 import { NotFound } from '@/components/elements/ScreenBlock';
 import tw from 'twin.macro';
 import GlobalStylesheet from '@/assets/css/GlobalStylesheet';
-import EnigmaPremium from '@/assets/css/EnigmaPremium';
+import StarlingTheme from '@/assets/css/StarlingTheme';
 import { history } from '@/components/history';
 import { setupInterceptors } from '@/api/interceptors';
 import AuthenticatedRoute from '@/components/elements/AuthenticatedRoute';
@@ -60,7 +60,7 @@ const App = () => {
     return (
         <>
             <GlobalStylesheet />
-            <EnigmaPremium />
+            <StarlingTheme />
             <StoreProvider store={store}>
                 <ProgressBar />
                 <div css={tw`mx-auto w-auto`}>

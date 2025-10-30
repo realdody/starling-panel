@@ -90,33 +90,6 @@ export default () => {
                 </div>
             </div>
             <div className='homeServers'>
-                <h2>Supported games</h2>
-                <div className='tarifBox'>
-                    <div className='tarif'>
-                        <img src='/themes/enigma_premium/img/minecraft_logo.png' alt='' />
-                        <h2>Minecraft</h2>
-                        <p>You can rent a minecraft server on our hosting</p>
-                        <a href='#'>Order server</a>
-                    </div>
-                    <div className='tarif'>
-                        <img src='/themes/enigma_premium/img/gta_logo.png' alt='' />
-                        <h2>GTA 5</h2>
-                        <p>You can rent a GTA server on our hosting</p>
-                        <a href='#'>Order server</a>
-                    </div>
-                    <div className='tarif'>
-                        <img style={{ borderRadius: '10px' }} src='/themes/enigma_premium/img/rust_logo.jpeg' alt='' />
-                        <h2>Rust</h2>
-                        <p>You can rent a Rust server on our hosting</p>
-                        <a href='#'>Order server</a>
-                    </div>
-                    <div className='tarif'>
-                        <img style={{ borderRadius: '10px' }} src='/themes/enigma_premium/img/csgo_logo.jpg' alt='' />
-                        <h2>CS:GO</h2>
-                        <p>You can rent a CS GO server on our hosting</p>
-                        <a href='#'>Order server</a>
-                    </div>
-                </div>
                 <h2>Your servers</h2>
                 <div className='w-full flex justify-between items-center mb-4 relative'>
                     <SearchContainer />

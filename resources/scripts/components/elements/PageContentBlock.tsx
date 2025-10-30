@@ -3,8 +3,6 @@ import ContentContainer from '@/components/elements/ContentContainer';
 import { CSSTransition } from 'react-transition-group';
 import tw from 'twin.macro';
 import FlashMessageRender from '@/components/FlashMessageRender';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeart } from '@fortawesome/free-solid-svg-icons';
 
 export interface PageContentBlockProps {
     title?: string;
@@ -37,12 +35,6 @@ const PageContentBlock: React.FC<PageContentBlockProps> = ({ title, showFlashKey
                             Pterodactyl&reg;
                         </a>
                         &nbsp;&copy; 2015 - {new Date().getFullYear()}.
-                        <span className='ml-2'>
-                            Theme by <FontAwesomeIcon icon={faHeart} style={{ color: '#e42c65' }} />{' '}
-                            <a href='https://enigmaprod.net' className='underline'>
-                                Enigma production.
-                            </a>
-                        </span>
                     </p>
                 </div>
             </>

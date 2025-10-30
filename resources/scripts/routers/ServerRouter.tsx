@@ -98,7 +98,7 @@ export default () => {
                                 <div className={'aboutServer'}>
                                     {nestId === 1 && (
                                         <img
-                                            src={'/themes/enigma_premium/img/minecraft_servericon.webp'}
+                                            src={'/themes/starling/img/minecraft_servericon.webp'}
                                             style={{ width: '60px' }}
                                             className={'mr-3 rounded-lg'}
                                             alt={'Server icon'}
