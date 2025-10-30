@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useStoreState } from 'easy-peasy';
 import { ApplicationStore } from '@/state';
-import tw from 'twin.macro';
 import { Button } from '@/components/elements/button/index';
 import SetupTOTPDialog from '@/components/dashboard/forms/SetupTOTPDialog';
 import RecoveryTokensDialog from '@/components/dashboard/forms/RecoveryTokensDialog';
@@ -26,22 +25,23 @@ export default () => {
     };
 
     return (
-        <div>
+        <div className='w-full flex justify-between items-center mt-2'>
             <SetupTOTPDialog open={visible === 'enable'} onClose={() => setVisible(null)} onTokens={onTokens} />
             <RecoveryTokensDialog tokens={tokens} open={tokens.length > 0} onClose={() => setTokens([])} />
             <DisableTOTPDialog open={visible === 'disable'} onClose={() => setVisible(null)} />
-            <p css={tw`text-sm`}>
-                {isEnabled
-                    ? 'Two-step verification is currently enabled on your account.'
-                    : 'You do not currently have two-step verification enabled on your account. Click the button below to begin configuring it.'}
-            </p>
-            <div css={tw`mt-6`}>
-                {isEnabled ? (
-                    <Button.Danger onClick={() => setVisible('disable')}>Disable Two-Step</Button.Danger>
-                ) : (
-                    <Button onClick={() => setVisible('enable')}>Enable Two-Step</Button>
-                )}
+            <div>
+                <p className='text-sm opacity-50'>Two-step verification</p>
+                <p>
+                    {isEnabled
+                        ? 'Verification is currently enabled on your account'
+                        : "You don't currently have two-step verification"}
+                </p>
             </div>
+            {isEnabled ? (
+                <Button.Danger onClick={() => setVisible('disable')}>Disable</Button.Danger>
+            ) : (
+                <Button onClick={() => setVisible('enable')}>Enable</Button>
+            )}
         </div>
     );
 };

@@ -82,7 +82,7 @@ const ConfigureTwoFactorForm = ({ onTokens }: Props) => {
                 variant={Input.Text.Variants.Loose}
                 value={value}
                 onChange={(e) => setValue(e.currentTarget.value)}
-                className={'mt-3'}
+                className={'mt-3 !bg-gray-700'}
                 placeholder={'000000'}
                 type={'text'}
                 inputMode={'numeric'}
@@ -94,7 +94,8 @@ const ConfigureTwoFactorForm = ({ onTokens }: Props) => {
             </label>
             <Input.Text
                 variant={Input.Text.Variants.Loose}
-                className={'mt-1'}
+                className={'mt-1 !bg-gray-700'}
+                placeholder={'*********'}
                 type={'password'}
                 value={password}
                 onChange={(e) => setPassword(e.currentTarget.value)}

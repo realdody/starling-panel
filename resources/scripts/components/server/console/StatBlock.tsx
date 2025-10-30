@@ -20,18 +20,8 @@ export default ({ title, copyOnClick, icon, color, className, children }: StatBl
 
     return (
         <CopyOnClick text={copyOnClick}>
-            <div className={classNames(styles.stat_block, 'bg-gray-600', className)}>
-                <div className={classNames(styles.status_bar, color || 'bg-gray-700')} />
-                <div className={classNames(styles.icon, color || 'bg-gray-700')}>
-                    <Icon
-                        icon={icon}
-                        className={classNames({
-                            'text-gray-100': !color || color === 'bg-gray-700',
-                            'text-gray-50': color && color !== 'bg-gray-700',
-                        })}
-                    />
-                </div>
-                <div className={'flex flex-col justify-center overflow-hidden w-full'}>
+            <div className={classNames(styles.stat_block, 'overflow-hidden', color ?? 'bg-gray-600', className)}>
+                <div className={'flex flex-col justify-center w-full relative'}>
                     <p className={'font-header leading-tight text-xs md:text-sm text-gray-200'}>{title}</p>
                     <div
                         ref={ref}
@@ -40,6 +30,7 @@ export default ({ title, copyOnClick, icon, color, className, children }: StatBl
                     >
                         {children}
                     </div>
+                    <Icon icon={icon} className='stats_icon' />
                 </div>
             </div>
         </CopyOnClick>

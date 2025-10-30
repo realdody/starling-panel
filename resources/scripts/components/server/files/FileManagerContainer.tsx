@@ -67,7 +67,7 @@ export default () => {
                         renderLeft={
                             <FileActionCheckbox
                                 type={'checkbox'}
-                                css={tw`mx-4`}
+                                css={tw`mx-4 !bg-gray-900`}
                                 checked={selectedFilesLength === (files?.length === 0 ? -1 : files?.length)}
                                 onChange={onSelectAllClick}
                             />

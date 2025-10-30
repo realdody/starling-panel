@@ -2,15 +2,13 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCogs, faLayerGroup, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCogs, faLayerGroup, faSignOutAlt, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { useStoreState } from 'easy-peasy';
 import { ApplicationStore } from '@/state';
-import SearchContainer from '@/components/dashboard/search/SearchContainer';
 import tw, { theme } from 'twin.macro';
 import styled from 'styled-components/macro';
 import http from '@/api/http';
 import SpinnerOverlay from '@/components/elements/SpinnerOverlay';
-import Tooltip from '@/components/elements/tooltip/Tooltip';
 import Avatar from '@/components/Avatar';
 
 const RightNavigation = styled.div`
@@ -36,6 +34,7 @@ export default () => {
     const name = useStoreState((state: ApplicationStore) => state.settings.data!.name);
     const rootAdmin = useStoreState((state: ApplicationStore) => state.user.data!.rootAdmin);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [mobile, setMobile] = useState<'opened' | 'closed'>('closed');
 
     const onTriggerLogout = () => {
         setIsLoggingOut(true);
@@ -46,46 +45,52 @@ export default () => {
     };
 
     return (
-        <div className={'w-full bg-neutral-900 shadow-md overflow-x-auto'}>
+        <div className={`leftMenu ${mobile}`}>
             <SpinnerOverlay visible={isLoggingOut} />
-            <div className={'mx-auto w-full flex items-center h-[3.5rem] max-w-[1200px]'}>
-                <div id={'logo'} className={'flex-1'}>
+            {mobile === 'closed' ? (
+                <div onClick={() => setMobile('opened')} className={'mobileMenuOpen'}>
+                    <FontAwesomeIcon icon={faBars} />
+                </div>
+            ) : (
+                <div onClick={() => setMobile('closed')} className={'mobileMenuOpen'}>
+                    <FontAwesomeIcon icon={faTimes} />
+                </div>
+            )}
+            <div className={'bg-neutral-900 leftMenuFixed'}>
+                <div className={'mx-auto w-full'}>
                     <Link
                         to={'/'}
                         className={
-                            'text-2xl font-header px-4 no-underline text-neutral-200 hover:text-neutral-100 transition-colors duration-150'
+                            'leftLogo text-xl font-header no-underline text-neutral-200 hover:text-neutral-100 transition-colors duration-150'
                         }
                     >
                         {name}
                     </Link>
-                </div>
-                <RightNavigation className={'flex h-full items-center justify-center'}>
-                    <SearchContainer />
-                    <Tooltip placement={'bottom'} content={'Dashboard'}>
+                    <RightNavigation className={'leftMenuContent'}>
+                        <p className={'subcategory'}>General</p>
                         <NavLink to={'/'} exact>
                             <FontAwesomeIcon icon={faLayerGroup} />
+                            <p className={'ml-2'}>My servers</p>
                         </NavLink>
-                    </Tooltip>
-                    {rootAdmin && (
-                        <Tooltip placement={'bottom'} content={'Admin'}>
-                            <a href={'/admin'} rel={'noreferrer'}>
-                                <FontAwesomeIcon icon={faCogs} />
-                            </a>
-                        </Tooltip>
-                    )}
-                    <Tooltip placement={'bottom'} content={'Account Settings'}>
                         <NavLink to={'/account'}>
-                            <span className={'flex items-center w-5 h-5'}>
+                            <div className={'w-6 h-6 rounded-md'}>
                                 <Avatar.User />
-                            </span>
+                            </div>
+                            <p className={'ml-2'}>My profile</p>
                         </NavLink>
-                    </Tooltip>
-                    <Tooltip placement={'bottom'} content={'Sign Out'}>
                         <button onClick={onTriggerLogout}>
                             <FontAwesomeIcon icon={faSignOutAlt} />
+                            <p className={'ml-2'}>Logout</p>
                         </button>
-                    </Tooltip>
-                </RightNavigation>
+                        <p className={'subcategory'}>Admin control</p>
+                        {rootAdmin && (
+                            <a href={'/admin'} rel={'noreferrer'}>
+                                <FontAwesomeIcon icon={faCogs} />
+                                <p className={'ml-2'}>Admin panel</p>
+                            </a>
+                        )}
+                    </RightNavigation>
+                </div>
             </div>
         </div>
     );

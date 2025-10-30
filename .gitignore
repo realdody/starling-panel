@@ -9,7 +9,7 @@ storage/framework/*
 /.idea
 /nbproject
 /.direnv
-
+/THEME
 node_modules
 *.log
 _ide_helper.php

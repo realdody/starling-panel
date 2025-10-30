@@ -1,6 +1,6 @@
 .stat_block {
-    @apply flex items-center rounded shadow-lg relative;
-    @apply col-span-3 md:col-span-2 lg:col-span-6;
+    @apply flex items-center rounded-lg relative;
+    @apply col-span-1;
     @apply px-3 py-2 md:p-3 lg:p-4;
 
     & > .status_bar {
@@ -22,16 +22,11 @@
     @apply flex flex-col w-full;
 
     & .overflows_container {
-        @apply -ml-4 sm:ml-0;
-        width: calc(100% + 2rem);
-
-        @screen sm {
-            @apply w-full;
-        }
+        @apply w-full;
     }
 
     & > .container {
-        @apply rounded-t p-1 sm:p-2 bg-black min-h-[16rem] flex-1 font-mono text-sm;
+        @apply rounded-t p-1 sm:p-2 bg-gray-900 min-h-[16rem] flex-1 font-mono text-sm;
 
         & #terminal {
             @apply h-full;
@@ -51,10 +46,11 @@
     }
 
     & .command_input {
-        @apply relative bg-gray-900 px-2 text-gray-100 pl-10 pr-4 py-2 w-full font-mono text-sm sm:rounded-b;
+        @apply relative bg-gray-700 px-2 text-gray-100 pl-10 pr-4 py-2 w-full font-mono text-sm sm:rounded-b;
         @apply focus:ring-0 outline-none focus-visible:outline-none;
         @apply border-0 border-b-2 border-transparent transition-colors duration-100;
         @apply active:border-cyan-500 focus:border-cyan-500;
+        border-radius:0 0 8px 8px !important;
     }
 }
 

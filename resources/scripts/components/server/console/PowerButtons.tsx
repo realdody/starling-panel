@@ -4,6 +4,8 @@ import Can from '@/components/elements/Can';
 import { ServerContext } from '@/state/server';
 import { PowerAction } from '@/components/server/console/ServerConsoleContainer';
 import { Dialog } from '@/components/elements/dialog';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlayCircle, faSyncAlt, faPowerOff } from '@fortawesome/free-solid-svg-icons';
 
 interface PowerButtonProps {
     className?: string;
@@ -36,8 +38,10 @@ export default ({ className }: PowerButtonProps) => {
         }
     }, [status]);
 
+    const containerClass = className ? `${className} serverPowers` : 'serverPowers';
+
     return (
-        <div className={className}>
+        <div className={containerClass}>
             <Dialog.Confirm
                 open={open}
                 hideCloseIcon
@@ -50,25 +54,32 @@ export default ({ className }: PowerButtonProps) => {
             </Dialog.Confirm>
             <Can action={'control.start'}>
                 <Button
-                    className={'flex-1'}
+                    className={'power_btn btn_start'}
                     disabled={status !== 'offline'}
                     onClick={onButtonClick.bind(this, 'start')}
                 >
-                    Start
+                    <FontAwesomeIcon icon={faPlayCircle} />
+                    <span>Start</span>
                 </Button>
             </Can>
             <Can action={'control.restart'}>
-                <Button.Text className={'flex-1'} disabled={!status} onClick={onButtonClick.bind(this, 'restart')}>
-                    Restart
+                <Button.Text
+                    className={'power_btn btn_restart'}
+                    disabled={!status}
+                    onClick={onButtonClick.bind(this, 'restart')}
+                >
+                    <FontAwesomeIcon icon={faSyncAlt} />
+                    <span>Restart</span>
                 </Button.Text>
             </Can>
             <Can action={'control.stop'}>
                 <Button.Danger
-                    className={'flex-1'}
+                    className={'power_btn btn_stop'}
                     disabled={status === 'offline'}
                     onClick={onButtonClick.bind(this, killable ? 'kill' : 'stop')}
                 >
-                    {killable ? 'Kill' : 'Stop'}
+                    <FontAwesomeIcon icon={faPowerOff} />
+                    <span>{killable ? 'Kill' : 'Stop'}</span>
                 </Button.Danger>
             </Can>
         </div>

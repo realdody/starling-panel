@@ -20,9 +20,9 @@ import 'xterm/css/xterm.css';
 import styles from './style.module.css';
 
 const theme = {
-    background: th`colors.black`.toString(),
+    background: 'hsl(0, 0%, 7%)',
     cursor: 'transparent',
-    black: th`colors.black`.toString(),
+    black: 'hsl(0, 0%, 7%)',
     red: '#E54B4B',
     green: '#9ECE58',
     yellow: '#FAED70',
@@ -66,11 +66,6 @@ export default () => {
     const isTransferring = ServerContext.useStoreState((state) => state.server.data!.isTransferring);
     const [history, setHistory] = usePersistedState<string[]>(`${serverId}:command_history`, []);
     const [historyIndex, setHistoryIndex] = useState(-1);
-    // SearchBarAddon has hardcoded z-index: 999 :(
-    const zIndex = `
-    .xterm-search-bar__addon {
-        z-index: 10;
-    }`;
 
     const handleConsoleOutput = (line: string, prelude = false) =>
         terminal.writeln((prelude ? TERMINAL_PRELUDE : '') + line.replace(/(?:\r\n|\r|\n)$/im, '') + '\u001b[0m');
@@ -81,6 +76,13 @@ export default () => {
             case 'failure':
                 terminal.writeln(TERMINAL_PRELUDE + 'Transfer has failed.\u001b[0m');
                 return;
+
+            // Sent by the source node whenever the server was archived successfully.
+            case 'archive':
+                terminal.writeln(
+                    TERMINAL_PRELUDE +
+                        'Server has been archived successfully, attempting connection to target node..\u001b[0m'
+                );
         }
     };
 
@@ -131,7 +133,6 @@ export default () => {
 
             terminal.open(ref.current);
             fitAddon.fit();
-            searchBar.addNewStyle(zIndex);
 
             // Add support for capturing keys
             terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {

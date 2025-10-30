@@ -73,7 +73,7 @@ export default ({
                         onClose={onDialogClose}
                     >
                         <div className={'fixed inset-0 bg-gray-900/50 z-40'} />
-                        <div className={'fixed inset-0 overflow-y-auto z-50'}>
+                        <div className={'fixed inset-0 overflow-y-auto z-50 modal_components'}>
                             <div
                                 ref={container}
                                 className={styles.container}
@@ -90,7 +90,7 @@ export default ({
                                 >
                                     <div className={'flex p-6 pb-0 overflow-y-auto'}>
                                         {iconPosition === 'container' && icon}
-                                        <div className={'flex-1 max-h-[70vh] min-w-0'}>
+                                        <div className={'flex-1 max-h-[70vh]'}>
                                             <div className={'flex items-center'}>
                                                 {iconPosition !== 'container' && icon}
                                                 <div>

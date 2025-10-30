@@ -22,7 +22,9 @@ export interface ModalProps extends RequiredModalProps {
 
 export const ModalMask = styled.div`
     ${tw`fixed z-50 overflow-auto flex w-full inset-0`};
-    background: rgba(0, 0, 0, 0.7);
+
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
 `;
 
 const ModalContainer = styled.div<{ alignTop?: boolean }>`
@@ -101,7 +103,7 @@ const Modal: React.FC<ModalProps> = ({
                     }
                 }}
             >
-                <ModalContainer alignTop={top}>
+                <ModalContainer alignTop={top} className='modal_components'>
                     {isDismissable && (
                         <div className={'close-icon'} onClick={() => setRender(false)}>
                             <svg

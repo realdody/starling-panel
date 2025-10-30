@@ -44,7 +44,7 @@ const options: ChartOptions<'line'> = {
             min: 0,
             type: 'linear',
             grid: {
-                display: true,
+                display: false,
                 color: theme('colors.gray.700'),
                 drawBorder: false,
             },
