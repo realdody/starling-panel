@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ITerminalOptions, Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { SearchAddon } from 'xterm-addon-search';
@@ -49,18 +49,62 @@ const terminalProps: ITerminalOptions = {
     fontFamily: th('fontFamily.mono'),
     rows: 30,
     theme: theme,
-    rendererType: 'dom',
+};
+
+const MAX_LOG_LINES = 800;
+const MOBILE_PRELUDE = 'container@pterodactyl~ ';
+const ANSI_ESCAPE_PREFIX = String.fromCharCode(27);
+const ANSI_ESCAPE_PATTERN = new RegExp(`${ANSI_ESCAPE_PREFIX}\\[[0-9;]*[A-Za-z]`, 'g');
+
+const stripAnsiCodes = (value: string) => value.replace(ANSI_ESCAPE_PATTERN, '');
+
+const useIsTouchDevice = (): boolean => {
+    const [isTouch, setIsTouch] = useState(false);
+
+    useEffect(() => {
+        const detect = () => {
+            if (typeof window === 'undefined') {
+                return false;
+            }
+
+            return (
+                'ontouchstart' in window ||
+                (navigator as any).maxTouchPoints > 0 ||
+                (navigator as any).msMaxTouchPoints > 0 ||
+                window.matchMedia?.('(pointer: coarse)').matches === true
+            );
+        };
+
+        setIsTouch(detect());
+
+        const mediaQuery = typeof window !== 'undefined' ? window.matchMedia('(pointer: coarse)') : null;
+        const handler = () => setIsTouch(detect());
+        mediaQuery?.addEventListener?.('change', handler);
+
+        return () => mediaQuery?.removeEventListener?.('change', handler);
+    }, []);
+
+    return isTouch;
 };
 
 export default () => {
     const TERMINAL_PRELUDE = '\u001b[1m\u001b[33mcontainer@pterodactyl~ \u001b[0m';
     const ref = useRef<HTMLDivElement>(null);
-    const terminal = useMemo(() => new Terminal({ ...terminalProps }), []);
-    const fitAddon = useMemo(() => new FitAddon(), []);
-    const searchAddon = useMemo(() => new SearchAddon(), []);
-    const searchBar = useMemo(() => new SearchBarAddon({ searchAddon }), [searchAddon]);
-    const webLinksAddon = useMemo(() => new WebLinksAddon(), []);
-    const scrollDownHelperAddon = useMemo(() => new ScrollDownHelperAddon(), []);
+    const mobileLogRef = useRef<HTMLDivElement>(null);
+    const [logLines, setLogLines] = useState<string[]>([]);
+    const isTouchDevice = useIsTouchDevice();
+    const terminal = useMemo<Terminal | null>(() => {
+        if (isTouchDevice) {
+            return null;
+        }
+
+        return new Terminal({ ...terminalProps });
+    }, [isTouchDevice]);
+    const fitAddon = useMemo(() => (terminal ? new FitAddon() : null), [terminal]);
+    const searchAddon = useMemo(() => (terminal ? new SearchAddon() : null), [terminal]);
+    const searchBar = useMemo(() => (searchAddon ? new SearchBarAddon({ searchAddon }) : null), [searchAddon]);
+    const webLinksAddon = useMemo(() => (terminal ? new WebLinksAddon() : null), [terminal]);
+    const scrollDownHelperAddon = useMemo(() => (terminal ? new ScrollDownHelperAddon() : null), [terminal]);
     const { connected, instance } = ServerContext.useStoreState((state) => state.socket);
     const [canSendCommands] = usePermissions(['control.console']);
     const serverId = ServerContext.useStoreState((state) => state.server.data!.id);
@@ -68,32 +112,58 @@ export default () => {
     const [history, setHistory] = usePersistedState<string[]>(`${serverId}:command_history`, []);
     const [historyIndex, setHistoryIndex] = useState(-1);
 
-    const handleConsoleOutput = (line: string, prelude = false) =>
-        terminal.writeln((prelude ? TERMINAL_PRELUDE : '') + line.replace(/(?:\r\n|\r|\n)$/im, '') + '\u001b[0m');
+    const appendConsoleLine = useCallback(
+        (line: string, { prelude = false, isError = false }: { prelude?: boolean; isError?: boolean } = {}) => {
+            const normalized = line.replace(/(?:\r\n|\r|\n)$/im, '');
 
-    const handleTransferStatus = (status: string) => {
-        switch (status) {
-            // Sent by either the source or target node if a failure occurs.
-            case 'failure':
-                terminal.writeln(TERMINAL_PRELUDE + 'Transfer has failed.\u001b[0m');
-                return;
+            if (terminal && !isTouchDevice) {
+                terminal.writeln(`${prelude ? TERMINAL_PRELUDE : ''}${normalized}\u001b[0m`);
+            }
 
-            // Sent by the source node whenever the server was archived successfully.
-            case 'archive':
-                terminal.writeln(
-                    TERMINAL_PRELUDE +
-                        'Server has been archived successfully, attempting connection to target node..\u001b[0m'
-                );
-        }
-    };
+            if (isTouchDevice) {
+                const stripped = stripAnsiCodes(normalized);
+                const prefix = prelude ? MOBILE_PRELUDE : '';
+                const message = `${prefix}${isError ? '[ERROR] ' : ''}${stripped}`;
 
-    const handleDaemonErrorOutput = (line: string) =>
-        terminal.writeln(
-            TERMINAL_PRELUDE + '\u001b[1m\u001b[41m' + line.replace(/(?:\r\n|\r|\n)$/im, '') + '\u001b[0m'
-        );
+                setLogLines((prev) => {
+                    const next = [...prev, message];
+                    return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next;
+                });
+            }
+        },
+        [isTouchDevice, setLogLines, terminal, TERMINAL_PRELUDE]
+    );
 
-    const handlePowerChangeEvent = (state: string) =>
-        terminal.writeln(TERMINAL_PRELUDE + 'Server marked as ' + state + '...\u001b[0m');
+    const handleConsoleOutput = useCallback(
+        (line: string, prelude = false) => appendConsoleLine(line, { prelude }),
+        [appendConsoleLine]
+    );
+
+    const handleTransferStatus = useCallback(
+        (status: string) => {
+            switch (status) {
+                case 'failure':
+                    appendConsoleLine('Transfer has failed.', { prelude: true });
+                    return;
+
+                case 'archive':
+                    appendConsoleLine('Server has been archived successfully, attempting connection to target node..', {
+                        prelude: true,
+                    });
+            }
+        },
+        [appendConsoleLine]
+    );
+
+    const handleDaemonErrorOutput = useCallback(
+        (line: string) => appendConsoleLine(line, { prelude: true, isError: true }),
+        [appendConsoleLine]
+    );
+
+    const handlePowerChangeEvent = useCallback(
+        (state: string) => appendConsoleLine('Server marked as ' + state + '...', { prelude: true }),
+        [appendConsoleLine]
+    );
 
     const handleCommandKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'ArrowUp') {
@@ -125,79 +195,45 @@ export default () => {
     };
 
     useEffect(() => {
-        let cleanupTextarea: (() => void) | undefined;
-
-        if (connected && ref.current && !terminal.element) {
-            terminal.loadAddon(fitAddon);
-            terminal.loadAddon(searchAddon);
-            terminal.loadAddon(searchBar);
-            terminal.loadAddon(webLinksAddon);
-            terminal.loadAddon(scrollDownHelperAddon);
-
-            terminal.open(ref.current);
-            fitAddon.fit();
-
-            const textarea = terminal.textarea;
-            if (textarea) {
-                const previous = {
-                    inputMode: textarea.getAttribute('inputmode'),
-                    ariaHidden: textarea.getAttribute('aria-hidden'),
-                    tabIndex: textarea.getAttribute('tabindex'),
-                    pointerEvents: textarea.style.pointerEvents,
-                };
-
-                textarea.setAttribute('inputmode', 'none');
-                textarea.setAttribute('aria-hidden', 'true');
-                textarea.setAttribute('tabindex', '-1');
-                textarea.style.pointerEvents = 'none';
-                textarea.blur();
-
-                cleanupTextarea = () => {
-                    if (!textarea) return;
-                    if (previous.inputMode) {
-                        textarea.setAttribute('inputmode', previous.inputMode);
-                    } else {
-                        textarea.removeAttribute('inputmode');
-                    }
-                    if (previous.ariaHidden) {
-                        textarea.setAttribute('aria-hidden', previous.ariaHidden);
-                    } else {
-                        textarea.removeAttribute('aria-hidden');
-                    }
-                    if (previous.tabIndex) {
-                        textarea.setAttribute('tabindex', previous.tabIndex);
-                    } else {
-                        textarea.removeAttribute('tabindex');
-                    }
-                    textarea.style.pointerEvents = previous.pointerEvents;
-                };
-            }
-
-            // Add support for capturing keys
-            terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-                    document.execCommand('copy');
-                    return false;
-                } else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-                    e.preventDefault();
-                    searchBar.show();
-                    return false;
-                } else if (e.key === 'Escape') {
-                    searchBar.hidden();
-                }
-                return true;
-            });
+        if (!terminal || !ref.current) {
+            return;
         }
-        return () => {
-            cleanupTextarea?.();
-        };
-    }, [terminal, connected, fitAddon, searchAddon, searchBar, webLinksAddon, scrollDownHelperAddon]);
+
+        if (terminal.element) {
+            return;
+        }
+
+        if (fitAddon) terminal.loadAddon(fitAddon);
+        if (searchAddon) terminal.loadAddon(searchAddon);
+        if (searchBar) terminal.loadAddon(searchBar);
+        if (webLinksAddon) terminal.loadAddon(webLinksAddon);
+        if (scrollDownHelperAddon) terminal.loadAddon(scrollDownHelperAddon);
+
+        terminal.open(ref.current);
+        fitAddon?.fit();
+
+        terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                document.execCommand('copy');
+                return false;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                searchBar?.show();
+                return false;
+            }
+            if (e.key === 'Escape') {
+                searchBar?.hidden();
+            }
+            return true;
+        });
+    }, [fitAddon, ref, scrollDownHelperAddon, searchAddon, searchBar, terminal, webLinksAddon]);
 
     useEventListener(
         'resize',
         debounce(() => {
-            if (terminal.element) {
-                fitAddon.fit();
+            if (terminal?.element) {
+                fitAddon?.fit();
             }
         }, 100)
     );
@@ -214,25 +250,49 @@ export default () => {
         };
 
         if (connected && instance) {
-            // Do not clear the console if the server is being transferred.
             if (!isTransferring) {
-                terminal.clear();
+                if (terminal && !isTouchDevice) {
+                    terminal.clear();
+                } else if (isTouchDevice) {
+                    setLogLines([]);
+                }
             }
 
-            Object.keys(listeners).forEach((key: string) => {
-                instance.addListener(key, listeners[key]);
+            Object.entries(listeners).forEach(([event, listener]) => {
+                instance.addListener(event, listener);
             });
             instance.send(SocketRequest.SEND_LOGS);
         }
 
         return () => {
-            if (instance) {
-                Object.keys(listeners).forEach((key: string) => {
-                    instance.removeListener(key, listeners[key]);
-                });
+            if (!instance) {
+                return;
             }
+
+            Object.entries(listeners).forEach(([event, listener]) => {
+                instance.removeListener(event, listener);
+            });
         };
-    }, [connected, instance]);
+    }, [
+        connected,
+        handleConsoleOutput,
+        handleDaemonErrorOutput,
+        handlePowerChangeEvent,
+        handleTransferStatus,
+        instance,
+        isTouchDevice,
+        isTransferring,
+        setLogLines,
+        terminal,
+    ]);
+
+    useEffect(() => {
+        if (!isTouchDevice || !mobileLogRef.current) {
+            return;
+        }
+
+        mobileLogRef.current.scrollTop = mobileLogRef.current.scrollHeight;
+    }, [isTouchDevice, logLines]);
 
     return (
         <div className={classNames(styles.terminal, 'relative')}>
@@ -240,9 +300,17 @@ export default () => {
             <div
                 className={classNames(styles.container, styles.overflows_container, { 'rounded-b': !canSendCommands })}
             >
-                <div className={'h-full'}>
-                    <div id={styles.terminal} ref={ref} />
-                </div>
+                {isTouchDevice ? (
+                    <div ref={mobileLogRef} className={styles.mobile_log}>
+                        {logLines.length
+                            ? logLines.join('\n')
+                            : 'Console output will appear here once the server connects.'}
+                    </div>
+                ) : (
+                    <div className={'h-full'}>
+                        <div id={styles.terminal} ref={ref} />
+                    </div>
+                )}
             </div>
             {canSendCommands && (
                 <div className={classNames('relative', styles.overflows_container)}>
