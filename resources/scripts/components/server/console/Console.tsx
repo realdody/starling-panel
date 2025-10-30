@@ -59,6 +59,8 @@ const ANSI_TOKEN_REGEX = new RegExp(`${ANSI_ESCAPE_PREFIX}\\[([0-9;?]*)([A-Za-z]
 const CARRIAGE_RETURN_REGEX = /\r/g;
 const BELL_CHARACTER = String.fromCharCode(7);
 const BELL_REGEX = new RegExp(BELL_CHARACTER, 'g');
+const OSC_SEQUENCE_REGEX = new RegExp(String.raw`\u001b\][^\u0007]*(?:\u0007|\u001b\\)`, 'g');
+const SINGLE_CHAR_ESCAPE_REGEX = new RegExp(String.raw`\u001b[=><]`, 'g');
 
 type ConsoleSegment = {
     text: string;
@@ -149,8 +151,15 @@ const mergeSegments = (segments: ConsoleSegment[]): ConsoleSegment[] => {
     return merged;
 };
 
+const sanitizeAnsiInput = (value: string) =>
+    value
+        .replace(OSC_SEQUENCE_REGEX, '')
+        .replace(SINGLE_CHAR_ESCAPE_REGEX, '')
+        .replace(CARRIAGE_RETURN_REGEX, '')
+        .replace(BELL_REGEX, '');
+
 const parseAnsiSegments = (input: string): ConsoleSegment[] => {
-    const cleanInput = input.replace(CARRIAGE_RETURN_REGEX, '').replace(BELL_REGEX, '');
+    const cleanInput = sanitizeAnsiInput(input);
     const segments: ConsoleSegment[] = [];
     let match: RegExpExecArray | null;
     let lastIndex = 0;
