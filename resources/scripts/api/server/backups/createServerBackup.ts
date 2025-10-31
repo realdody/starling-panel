@@ -6,6 +6,7 @@ interface RequestParameters {
     name?: string;
     ignored?: string;
     isLocked: boolean;
+    backupCategoryId?: number | null;
 }
 
 export default async (uuid: string, params: RequestParameters): Promise<ServerBackup> => {
@@ -13,6 +14,7 @@ export default async (uuid: string, params: RequestParameters): Promise<ServerBa
         name: params.name,
         ignored: params.ignored,
         is_locked: params.isLocked,
+        backup_category_id: params.backupCategoryId ?? null,
     });
 
     return rawDataToServerBackup(data);

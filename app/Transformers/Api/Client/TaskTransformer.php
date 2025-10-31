@@ -21,6 +21,11 @@ class TaskTransformer extends BaseClientTransformer
             'sequence_id' => $model->sequence_id,
             'action' => $model->action,
             'payload' => $model->payload,
+            'backup_category' => $model->relationLoaded('backupCategory') && $model->backupCategory ? [
+                'id' => $model->backupCategory->id,
+                'name' => $model->backupCategory->name,
+                'max_backups' => $model->backupCategory->max_backups,
+            ] : null,
             'time_offset' => $model->time_offset,
             'is_queued' => $model->is_queued,
             'continue_on_failure' => $model->continue_on_failure,

@@ -35,9 +35,13 @@ class BackupRepository extends EloquentRepository
     /**
      * Returns a query filtering only non-failed backups for a specific server.
      */
-    public function getNonFailedBackups(Server $server): HasMany
+    public function getNonFailedBackups(Server $server, ?int $categoryId = null): HasMany
     {
-        return $server->backups()->where(function ($query) {
+        return $server->backups()
+            ->when(!is_null($categoryId), function ($query) use ($categoryId) {
+                $query->where('backup_category_id', $categoryId);
+            })
+            ->where(function ($query) {
             $query->whereNull('completed_at')
                 ->orWhere('is_successful', true);
         });

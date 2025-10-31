@@ -129,6 +129,13 @@ Route::group([
         Route::delete('/{backup}', [Client\Servers\BackupController::class, 'delete']);
     });
 
+    Route::group(['prefix' => '/backup-categories'], function () {
+        Route::get('/', [Client\Servers\BackupCategoryController::class, 'index']);
+        Route::post('/', [Client\Servers\BackupCategoryController::class, 'store']);
+        Route::post('/{category}', [Client\Servers\BackupCategoryController::class, 'update']);
+        Route::delete('/{category}', [Client\Servers\BackupCategoryController::class, 'delete']);
+    });
+
     Route::group(['prefix' => '/startup'], function () {
         Route::get('/', [Client\Servers\StartupController::class, 'index']);
         Route::put('/variable', [Client\Servers\StartupController::class, 'update']);

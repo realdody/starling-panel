@@ -48,6 +48,7 @@ class RunTaskJob extends Job implements ShouldQueue
         }
 
         $server = $this->task->server;
+        $this->task->loadMissing('backupCategory');
         // If we made it to this point and the server status is not null it means the
         // server was likely suspended or marked as reinstalling after the schedule
         // was queued up. Just end the task right now — this should be a very rare
@@ -68,7 +69,10 @@ class RunTaskJob extends Job implements ShouldQueue
                     $commandRepository->setServer($server)->send($this->task->payload);
                     break;
                 case Task::ACTION_BACKUP:
-                    $backupService->setIgnoredFiles(explode(PHP_EOL, $this->task->payload))->handle($server, null, true);
+                    $backupService
+                        ->setIgnoredFiles(explode(PHP_EOL, $this->task->payload))
+                        ->setCategory($this->task->backupCategory)
+                        ->handle($server, null, true);
                     break;
                 default:
                     throw new \InvalidArgumentException('Invalid task action provided: ' . $this->task->action);

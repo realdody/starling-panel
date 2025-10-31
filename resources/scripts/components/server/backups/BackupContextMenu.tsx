@@ -22,6 +22,7 @@ import Input from '@/components/elements/Input';
 import { restoreServerBackup } from '@/api/server/backups';
 import http, { httpErrorToHuman } from '@/api/http';
 import { Dialog } from '@/components/elements/dialog';
+import getServerBackupCategories from '@/api/swr/getServerBackupCategories';
 
 interface Props {
     backup: ServerBackup;
@@ -35,6 +36,7 @@ export default ({ backup }: Props) => {
     const [truncate, setTruncate] = useState(false);
     const { clearFlashes, clearAndAddHttpError } = useFlash();
     const { mutate } = getServerBackups();
+    const { mutate: mutateCategories } = getServerBackupCategories();
 
     const doDownload = () => {
         setLoading(true);
@@ -65,6 +67,11 @@ export default ({ backup }: Props) => {
                     false
                 )
             )
+            .then(() => mutateCategories())
+            .then(() => {
+                setLoading(false);
+                setModal('');
+            })
             .catch((error) => {
                 console.error(error);
                 clearAndAddHttpError({ key: 'backups', error });

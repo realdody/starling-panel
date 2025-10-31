@@ -3,6 +3,7 @@
 namespace Pterodactyl\Tests\Integration\Api\Client\Server\ScheduleTask;
 
 use Pterodactyl\Models\Task;
+use Pterodactyl\Models\BackupCategory;
 use Illuminate\Http\Response;
 use Pterodactyl\Models\Schedule;
 use Pterodactyl\Models\Permission;
@@ -84,6 +85,47 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
             ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonPath('errors.0.meta.rule', 'numeric')
             ->assertJsonPath('errors.0.meta.source_field', 'sequence_id');
+    }
+
+    public function testBackupTaskCanBeAssignedToCategory(): void
+    {
+        [$user, $server] = $this->generateTestAccount();
+
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
+        /** @var BackupCategory $category */
+        $category = BackupCategory::factory()->create(['server_id' => $server->id, 'max_backups' => 3]);
+
+        $response = $this->actingAs($user)->postJson($this->link($schedule, '/tasks'), [
+            'action' => 'backup',
+            'payload' => '',
+            'time_offset' => 0,
+            'backup_category_id' => $category->id,
+        ])->assertOk();
+
+        /** @var Task $task */
+        $task = Task::query()->findOrFail($response->json('attributes.id'));
+        $this->assertSame($category->id, $task->backup_category_id);
+        $response->assertJsonPath('attributes.backup_category.id', $category->id);
+    }
+
+    public function testBackupTaskRejectsForeignCategory(): void
+    {
+        [$user, $server] = $this->generateTestAccount();
+        $otherServer = $this->createServerModel();
+
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
+        $foreignCategory = BackupCategory::factory()->create(['server_id' => $otherServer->id]);
+
+        $this->actingAs($user)
+            ->postJson($this->link($schedule, '/tasks'), [
+                'action' => 'backup',
+                'payload' => '',
+                'time_offset' => 0,
+                'backup_category_id' => $foreignCategory->id,
+            ])
+            ->assertNotFound();
     }
 
     /**

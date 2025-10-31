@@ -18,6 +18,7 @@ class StoreBackupRequest extends ClientApiRequest
             'name' => 'nullable|string|max:191',
             'is_locked' => 'nullable|boolean',
             'ignored' => 'nullable|string',
+            'backup_category_id' => 'nullable|integer|exists:backup_categories,id',
         ];
     }
 }

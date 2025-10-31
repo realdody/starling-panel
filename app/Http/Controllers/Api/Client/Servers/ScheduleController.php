@@ -37,7 +37,7 @@ class ScheduleController extends ClientApiController
      */
     public function index(ViewScheduleRequest $request, Server $server): array
     {
-        $schedules = $server->schedules->loadMissing('tasks');
+        $schedules = $server->schedules->loadMissing('tasks.backupCategory');
 
         return $this->fractal->collection($schedules)
             ->transformWith($this->getTransformer(ScheduleTransformer::class))
@@ -85,7 +85,7 @@ class ScheduleController extends ClientApiController
             throw new NotFoundHttpException();
         }
 
-        $schedule->loadMissing('tasks');
+        $schedule->loadMissing('tasks.backupCategory');
 
         return $this->fractal->item($schedule)
             ->transformWith($this->getTransformer(ScheduleTransformer::class))

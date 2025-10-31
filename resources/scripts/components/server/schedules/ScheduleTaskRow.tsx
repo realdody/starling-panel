@@ -99,6 +99,11 @@ export default ({ schedule, task }: Props) => {
                         </div>
                     </div>
                 )}
+                {task.action === 'backup' && task.backupCategory && (
+                    <p css={tw`md:ml-6 mt-2 text-xs text-primary-300 uppercase`}>
+                        Category: {task.backupCategory.name} (limit {task.backupCategory.maxBackups})
+                    </p>
+                )}
             </div>
             <div css={tw`mt-3 sm:mt-0 flex items-center w-full sm:w-auto`}>
                 {task.continueOnFailure && (

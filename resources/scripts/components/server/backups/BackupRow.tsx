@@ -78,6 +78,9 @@ export default ({ backup, className }: Props) => {
                         )}
                     </div>
                     <p css={tw`mt-1 md:mt-0 text-xs text-neutral-400 font-mono truncate`}>{backup.checksum}</p>
+                    {backup.category && (
+                        <p css={tw`text-xs text-primary-300 uppercase mt-1`}>Category: {backup.category.name}</p>
+                    )}
                 </div>
             </div>
             <div css={tw`flex-1 md:flex-none md:w-48 mt-4 md:mt-0 md:ml-8 md:text-center`}>

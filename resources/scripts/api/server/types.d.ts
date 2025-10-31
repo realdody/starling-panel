@@ -16,6 +16,17 @@ export interface ServerBackup {
     bytes: number;
     createdAt: Date;
     completedAt: Date | null;
+    category: ServerBackupCategorySummary | null;
+}
+
+export interface ServerBackupCategorySummary {
+    id: number;
+    name: string;
+    maxBackups: number;
+}
+
+export interface BackupCategory extends ServerBackupCategorySummary {
+    currentBackupCount: number;
 }
 
 export interface ServerEggVariable {

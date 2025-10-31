@@ -2,23 +2,24 @@
 
 namespace Pterodactyl\Http\Controllers\Api\Client\Servers;
 
-use Illuminate\Http\Request;
-use Pterodactyl\Models\Backup;
-use Pterodactyl\Models\Server;
-use Illuminate\Http\JsonResponse;
-use Pterodactyl\Facades\Activity;
-use Pterodactyl\Models\Permission;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Pterodactyl\Facades\Activity;
+use Pterodactyl\Http\Controllers\Api\Client\ClientApiController;
+use Pterodactyl\Http\Requests\Api\Client\Servers\Backups\RestoreBackupRequest;
+use Pterodactyl\Http\Requests\Api\Client\Servers\Backups\StoreBackupRequest;
+use Pterodactyl\Models\Backup;
+use Pterodactyl\Models\Permission;
+use Pterodactyl\Models\Server;
+use Pterodactyl\Repositories\Eloquent\BackupRepository;
+use Pterodactyl\Repositories\Wings\DaemonBackupRepository;
 use Pterodactyl\Services\Backups\DeleteBackupService;
 use Pterodactyl\Services\Backups\DownloadLinkService;
-use Pterodactyl\Repositories\Eloquent\BackupRepository;
 use Pterodactyl\Services\Backups\InitiateBackupService;
-use Pterodactyl\Repositories\Wings\DaemonBackupRepository;
 use Pterodactyl\Transformers\Api\Client\BackupTransformer;
-use Pterodactyl\Http\Controllers\Api\Client\ClientApiController;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Pterodactyl\Http\Requests\Api\Client\Servers\Backups\StoreBackupRequest;
-use Pterodactyl\Http\Requests\Api\Client\Servers\Backups\RestoreBackupRequest;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class BackupController extends ClientApiController
 {
@@ -49,7 +50,7 @@ class BackupController extends ClientApiController
 
         $limit = min($request->query('per_page') ?? 20, 50);
 
-        return $this->fractal->collection($server->backups()->paginate($limit))
+        return $this->fractal->collection($server->backups()->with('category')->paginate($limit))
             ->transformWith($this->getTransformer(BackupTransformer::class))
             ->addMeta([
                 'backup_count' => $this->repository->getNonFailedBackups($server)->count(),
@@ -69,6 +70,18 @@ class BackupController extends ClientApiController
         $action = $this->initiateBackupService
             ->setIgnoredFiles(explode(PHP_EOL, $request->input('ignored') ?? ''));
 
+        $category = null;
+        if ($request->filled('backup_category_id')) {
+            $category = $server->backupCategories()->find($request->integer('backup_category_id'));
+            if (!$category) {
+                throw new NotFoundHttpException('The requested backup category does not exist for this server.');
+            }
+
+            $action->setCategory($category);
+        } else {
+            $action->setCategory(null);
+        }
+
         // Only set the lock status if the user even has permission to delete backups,
         // otherwise ignore this status. This gets a little funky since it isn't clear
         // how best to allow a user to create a backup that is locked without also preventing
@@ -77,7 +90,7 @@ class BackupController extends ClientApiController
             $action->setIsLocked((bool) $request->input('is_locked'));
         }
 
-        $backup = $action->handle($server, $request->input('name'));
+        $backup = $action->handle($server, $request->input('name'))->load('category');
 
         Activity::event('server:backup.start')
             ->subject($backup)
@@ -107,7 +120,7 @@ class BackupController extends ClientApiController
 
         Activity::event($action)->subject($backup)->property('name', $backup->name)->log();
 
-        return $this->fractal->item($backup)
+        return $this->fractal->item($backup->loadMissing('category'))
             ->transformWith($this->getTransformer(BackupTransformer::class))
             ->toArray();
     }

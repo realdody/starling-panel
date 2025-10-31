@@ -10,6 +10,7 @@ import getServerBackups, { Context as ServerBackupContext } from '@/api/swr/getS
 import { ServerContext } from '@/state/server';
 import ServerContentBlock from '@/components/elements/ServerContentBlock';
 import Pagination from '@/components/elements/Pagination';
+import BackupCategoriesManager from '@/components/server/backups/BackupCategoriesManager';
 
 const BackupContainer = () => {
     const { page, setPage } = useContext(ServerBackupContext);
@@ -35,6 +36,9 @@ const BackupContainer = () => {
     return (
         <ServerContentBlock title={'Backups'}>
             <FlashMessageRender byKey={'backups'} css={tw`mb-4`} />
+            <Can action={'backup.create'}>
+                <BackupCategoriesManager />
+            </Can>
             <Pagination data={backups} onPageSelect={setPage}>
                 {({ items }) =>
                     !items.length ? (
@@ -60,16 +64,11 @@ const BackupContainer = () => {
                 </p>
             )}
             <Can action={'backup.create'}>
-                <div css={tw`mt-6 sm:flex items-center justify-end`}>
-                    {backupLimit > 0 && backups.backupCount > 0 && (
-                        <p css={tw`text-sm text-neutral-300 mb-4 sm:mr-6 sm:mb-0`}>
-                            {backups.backupCount} of {backupLimit} backups have been created for this server.
-                        </p>
-                    )}
-                    {backupLimit > 0 && backupLimit > backups.backupCount && (
+                {backupLimit !== 0 && (
+                    <div css={tw`mt-6 sm:flex items-center justify-end`}>
                         <CreateBackupButton css={tw`w-full sm:w-auto`} />
-                    )}
-                </div>
+                    </div>
+                )}
             </Can>
         </ServerContentBlock>
     );

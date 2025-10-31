@@ -2,23 +2,27 @@
 
 namespace Pterodactyl\Services\Backups;
 
-use Ramsey\Uuid\Uuid;
 use Carbon\CarbonImmutable;
-use Webmozart\Assert\Assert;
-use Pterodactyl\Models\Backup;
-use Pterodactyl\Models\Server;
 use Illuminate\Database\ConnectionInterface;
+use InvalidArgumentException;
+use Pterodactyl\Exceptions\Service\Backup\TooManyBackupsException;
 use Pterodactyl\Extensions\Backups\BackupManager;
+use Pterodactyl\Models\Backup;
+use Pterodactyl\Models\BackupCategory;
+use Pterodactyl\Models\Server;
 use Pterodactyl\Repositories\Eloquent\BackupRepository;
 use Pterodactyl\Repositories\Wings\DaemonBackupRepository;
-use Pterodactyl\Exceptions\Service\Backup\TooManyBackupsException;
+use Ramsey\Uuid\Uuid;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
+use Webmozart\Assert\Assert;
 
 class InitiateBackupService
 {
     private ?array $ignoredFiles;
 
     private bool $isLocked = false;
+
+    private ?BackupCategory $category = null;
 
     /**
      * InitiateBackupService constructor.
@@ -66,6 +70,13 @@ class InitiateBackupService
         return $this;
     }
 
+    public function setCategory(?BackupCategory $category): self
+    {
+        $this->category = $category;
+
+        return $this;
+    }
+
     /**
      * Initiates the backup process for a server on Wings.
      *
@@ -86,20 +97,52 @@ class InitiateBackupService
             }
         }
 
-        // Check if the server has reached or exceeded its backup limit.
-        // completed_at == null will cover any ongoing backups, while is_successful == true will cover any completed backups.
-        $successful = $this->repository->getNonFailedBackups($server);
-        if (!$server->backup_limit || $successful->count() >= $server->backup_limit) {
-            // Do not allow the user to continue if this server is already at its limit and can't override.
-            if (!$override || $server->backup_limit <= 0) {
+        if ($this->category && $this->category->server_id !== $server->id) {
+            throw new InvalidArgumentException('The provided backup category does not belong to the specified server.');
+        }
+
+        if ($this->category) {
+            $categoryLimit = $this->category->max_backups;
+            $categoryBackups = $this->repository->getNonFailedBackups($server, $this->category->id);
+            $categoryCount = (clone $categoryBackups)->count();
+
+            if ($categoryCount >= $categoryLimit) {
+                if (!$override) {
+                    throw new TooManyBackupsException($categoryLimit, $this->category->name);
+                }
+
+                /** @var Backup|null $oldestCategoryBackup */
+                $oldestCategoryBackup = (clone $categoryBackups)
+                    ->where('is_locked', false)
+                    ->orderBy('created_at')
+                    ->first();
+
+                if (!$oldestCategoryBackup) {
+                    throw new TooManyBackupsException($categoryLimit, $this->category->name);
+                }
+
+                $this->deleteBackupService->handle($oldestCategoryBackup);
+            }
+        }
+
+        $totalBackupsQuery = $this->repository->getNonFailedBackups($server);
+        $totalBackups = (clone $totalBackupsQuery)->count();
+
+        if ($server->backup_limit > 0 && $totalBackups >= $server->backup_limit) {
+            if (!$override) {
                 throw new TooManyBackupsException($server->backup_limit);
             }
 
-            // Get the oldest backup the server has that is not "locked" (indicating a backup that should
-            // never be automatically purged). If we find a backup we will delete it and then continue with
-            // this process. If no backup is found that can be used an exception is thrown.
-            /** @var Backup $oldest */
-            $oldest = $successful->where('is_locked', false)->orderBy('created_at')->first();
+            $candidateQuery = (clone $totalBackupsQuery)
+                ->when($this->category, function ($query, BackupCategory $category) {
+                    return $query->where('backup_category_id', $category->id);
+                })
+                ->where('is_locked', false)
+                ->orderBy('created_at');
+
+            /** @var Backup|null $oldest */
+            $oldest = $candidateQuery->first();
+
             if (!$oldest) {
                 throw new TooManyBackupsException($server->backup_limit);
             }
@@ -111,6 +154,7 @@ class InitiateBackupService
             /** @var Backup $backup */
             $backup = $this->repository->create([
                 'server_id' => $server->id,
+                'backup_category_id' => $this->category?->id,
                 'uuid' => Uuid::uuid4()->toString(),
                 'name' => trim($name) ?: sprintf('Backup at %s', CarbonImmutable::now()->toDateTimeString()),
                 'ignored_files' => array_values($this->ignoredFiles ?? []),

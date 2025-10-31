@@ -22,7 +22,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property \Carbon\CarbonImmutable $created_at
  * @property \Carbon\CarbonImmutable $updated_at
  * @property \Carbon\CarbonImmutable|null $deleted_at
+ * @property int|null $backup_category_id
  * @property Server $server
+ * @property BackupCategory|null $category
  * @property \Pterodactyl\Models\AuditLog[] $audits
  */
 class Backup extends Model
@@ -42,6 +44,7 @@ class Backup extends Model
 
     protected $casts = [
         'id' => 'int',
+        'backup_category_id' => 'int',
         'is_successful' => 'bool',
         'is_locked' => 'bool',
         'ignored_files' => 'array',
@@ -75,5 +78,10 @@ class Backup extends Model
     public function server(): BelongsTo
     {
         return $this->belongsTo(Server::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(BackupCategory::class, 'backup_category_id');
     }
 }

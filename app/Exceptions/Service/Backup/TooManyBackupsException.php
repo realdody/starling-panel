@@ -9,10 +9,10 @@ class TooManyBackupsException extends DisplayException
     /**
      * TooManyBackupsException constructor.
      */
-    public function __construct(int $backupLimit)
+    public function __construct(int $backupLimit, ?string $categoryName = null)
     {
-        parent::__construct(
-            sprintf('Cannot create a new backup, this server has reached its limit of %d backups.', $backupLimit)
-        );
+        $resource = $categoryName ? sprintf('the "%s" backup category', $categoryName) : 'this server';
+
+        parent::__construct(sprintf('Cannot create a new backup, %s has reached its limit of %d backups.', $resource, $backupLimit));
     }
 }

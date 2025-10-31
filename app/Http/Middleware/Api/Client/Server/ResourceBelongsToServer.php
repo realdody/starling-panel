@@ -11,6 +11,7 @@ use Pterodactyl\Models\Subuser;
 use Pterodactyl\Models\Database;
 use Pterodactyl\Models\Schedule;
 use Pterodactyl\Models\Allocation;
+use Pterodactyl\Models\BackupCategory;
 use Illuminate\Database\Eloquent\Model;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -48,6 +49,7 @@ class ResourceBelongsToServer
                 // they are assigned to, so the logic is identical for them all.
                 case Allocation::class:
                 case Backup::class:
+                case BackupCategory::class:
                 case Database::class:
                 case Schedule::class:
                 case Subuser::class:

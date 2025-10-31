@@ -14,6 +14,7 @@ use Pterodactyl\Contracts\Extensions\HashidsInterface;
  * @property int $sequence_id
  * @property string $action
  * @property string $payload
+ * @property int|null $backup_category_id
  * @property int $time_offset
  * @property bool $is_queued
  * @property bool $continue_on_failure
@@ -60,6 +61,7 @@ class Task extends Model
         'sequence_id',
         'action',
         'payload',
+        'backup_category_id',
         'time_offset',
         'is_queued',
         'continue_on_failure',
@@ -72,6 +74,7 @@ class Task extends Model
         'id' => 'integer',
         'schedule_id' => 'integer',
         'sequence_id' => 'integer',
+        'backup_category_id' => 'integer',
         'time_offset' => 'integer',
         'is_queued' => 'boolean',
         'continue_on_failure' => 'boolean',
@@ -91,6 +94,7 @@ class Task extends Model
         'sequence_id' => 'required|numeric|min:1',
         'action' => 'required|string',
         'payload' => 'required_unless:action,backup|string',
+        'backup_category_id' => 'nullable|integer|exists:backup_categories,id',
         'time_offset' => 'required|numeric|between:0,900',
         'is_queued' => 'boolean',
         'continue_on_failure' => 'boolean',
@@ -123,5 +127,10 @@ class Task extends Model
     public function server(): \Znck\Eloquent\Relations\BelongsToThrough
     {
         return $this->belongsToThrough(Server::class, Schedule::class);
+    }
+
+    public function backupCategory(): BelongsTo
+    {
+        return $this->belongsTo(BackupCategory::class, 'backup_category_id');
     }
 }

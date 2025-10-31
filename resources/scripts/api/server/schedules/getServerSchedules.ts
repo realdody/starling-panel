@@ -1,4 +1,5 @@
 import http from '@/api/http';
+import { ServerBackupCategorySummary } from '@/api/server/types';
 
 export interface Schedule {
     id: number;
@@ -26,6 +27,7 @@ export interface Task {
     sequenceId: number;
     action: string;
     payload: string;
+    backupCategory: ServerBackupCategorySummary | null;
     timeOffset: number;
     isQueued: boolean;
     continueOnFailure: boolean;
@@ -38,6 +40,13 @@ export const rawDataToServerTask = (data: any): Task => ({
     sequenceId: data.sequence_id,
     action: data.action,
     payload: data.payload,
+    backupCategory: data.backup_category
+        ? {
+              id: data.backup_category.id,
+              name: data.backup_category.name,
+              maxBackups: data.backup_category.max_backups,
+          }
+        : null,
     timeOffset: data.time_offset,
     isQueued: data.is_queued,
     continueOnFailure: data.continue_on_failure,

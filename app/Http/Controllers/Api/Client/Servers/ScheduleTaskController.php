@@ -48,11 +48,19 @@ class ScheduleTaskController extends ClientApiController
             throw new HttpForbiddenException("A backup task cannot be created when the server's backup limit is set to 0.");
         }
 
+        $categoryId = null;
+        if ($request->action === Task::ACTION_BACKUP && $request->filled('backup_category_id')) {
+            $categoryId = $server->backupCategories()->where('id', $request->integer('backup_category_id'))->value('id');
+            if (!$categoryId) {
+                throw new NotFoundHttpException();
+            }
+        }
+
         /** @var Task|null $lastTask */
         $lastTask = $schedule->tasks()->orderByDesc('sequence_id')->first();
 
         /** @var Task $task */
-        $task = $this->connection->transaction(function () use ($request, $schedule, $lastTask) {
+        $task = $this->connection->transaction(function () use ($request, $schedule, $lastTask, $categoryId) {
             $sequenceId = ($lastTask->sequence_id ?? 0) + 1;
             $requestSequenceId = $request->integer('sequence_id', $sequenceId);
 
@@ -77,6 +85,7 @@ class ScheduleTaskController extends ClientApiController
                 'sequence_id' => $sequenceId,
                 'action' => $request->input('action'),
                 'payload' => $request->input('payload') ?? '',
+                'backup_category_id' => $request->action === Task::ACTION_BACKUP ? $categoryId : null,
                 'time_offset' => $request->input('time_offset'),
                 'continue_on_failure' => $request->boolean('continue_on_failure'),
             ]);
@@ -87,7 +96,7 @@ class ScheduleTaskController extends ClientApiController
             ->property(['name' => $schedule->name, 'action' => $task->action, 'payload' => $task->payload])
             ->log();
 
-        return $this->fractal->item($task)
+        return $this->fractal->item($task->load('backupCategory'))
             ->transformWith($this->getTransformer(TaskTransformer::class))
             ->toArray();
     }
@@ -108,7 +117,24 @@ class ScheduleTaskController extends ClientApiController
             throw new HttpForbiddenException("A backup task cannot be created when the server's backup limit is set to 0.");
         }
 
-        $this->connection->transaction(function () use ($request, $schedule, $task) {
+        if ($request->action === Task::ACTION_BACKUP) {
+            if ($request->has('backup_category_id')) {
+                if ($request->filled('backup_category_id')) {
+                    $categoryId = $server->backupCategories()->where('id', $request->integer('backup_category_id'))->value('id');
+                    if (!$categoryId) {
+                        throw new NotFoundHttpException();
+                    }
+                } else {
+                    $categoryId = null;
+                }
+            } else {
+                $categoryId = $task->backup_category_id;
+            }
+        } else {
+            $categoryId = null;
+        }
+
+        $this->connection->transaction(function () use ($request, $schedule, $task, $categoryId) {
             $sequenceId = $request->integer('sequence_id', $task->sequence_id);
             // Ensure that the sequence id is at least 1.
             if ($sequenceId < 1) {
@@ -132,6 +158,7 @@ class ScheduleTaskController extends ClientApiController
                 'sequence_id' => $sequenceId,
                 'action' => $request->input('action'),
                 'payload' => $request->input('payload') ?? '',
+                'backup_category_id' => $request->action === Task::ACTION_BACKUP ? $categoryId : null,
                 'time_offset' => $request->input('time_offset'),
                 'continue_on_failure' => $request->boolean('continue_on_failure'),
             ]);
@@ -142,7 +169,7 @@ class ScheduleTaskController extends ClientApiController
             ->property(['name' => $schedule->name, 'action' => $task->action, 'payload' => $task->payload])
             ->log();
 
-        return $this->fractal->item($task->refresh())
+        return $this->fractal->item($task->refresh()->load('backupCategory'))
             ->transformWith($this->getTransformer(TaskTransformer::class))
             ->toArray();
     }

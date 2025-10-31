@@ -17,6 +17,7 @@ import Select from '@/components/elements/Select';
 import ModalContext from '@/context/ModalContext';
 import asModal from '@/hoc/asModal';
 import FormikSwitch from '@/components/elements/FormikSwitch';
+import getServerBackupCategories from '@/api/swr/getServerBackupCategories';
 
 interface Props {
     schedule: Schedule;
@@ -30,6 +31,7 @@ interface Values {
     payload: string;
     timeOffset: string;
     continueOnFailure: boolean;
+    backupCategoryId: string;
 }
 
 const schema = object().shape({
@@ -39,6 +41,7 @@ const schema = object().shape({
         then: string().required('A task payload must be provided.'),
         otherwise: string(),
     }),
+    backupCategoryId: string().nullable(),
     continueOnFailure: boolean(),
     timeOffset: number()
         .typeError('The time offset must be a valid number between 0 and 900.')
@@ -50,14 +53,25 @@ const schema = object().shape({
 const ActionListener = () => {
     const [{ value }, { initialValue: initialAction }] = useField<string>('action');
     const [, { initialValue: initialPayload }, { setValue, setTouched }] = useField<string>('payload');
+    const [, { initialValue: initialCategory }, { setValue: setCategoryValue, setTouched: setCategoryTouched }] =
+        useField<string>('backupCategoryId');
 
     useEffect(() => {
         if (value !== initialAction) {
             setValue(value === 'power' ? 'start' : '');
             setTouched(false);
+            if (value !== 'backup') {
+                setCategoryValue('');
+                setCategoryTouched(false);
+            } else {
+                setCategoryValue('');
+                setCategoryTouched(false);
+            }
         } else {
             setValue(initialPayload || '');
             setTouched(false);
+            setCategoryValue(initialCategory || '');
+            setCategoryTouched(false);
         }
     }, [value]);
 
@@ -71,6 +85,7 @@ const TaskDetailsModal = ({ schedule, task }: Props) => {
     const uuid = ServerContext.useStoreState((state) => state.server.data!.uuid);
     const appendSchedule = ServerContext.useStoreActions((actions) => actions.schedules.appendSchedule);
     const backupLimit = ServerContext.useStoreState((state) => state.server.data!.featureLimits.backups);
+    const { data: categories } = getServerBackupCategories();
 
     useEffect(() => {
         return () => {
@@ -87,7 +102,16 @@ const TaskDetailsModal = ({ schedule, task }: Props) => {
                 key: 'schedule:task',
             });
         } else {
-            createOrUpdateScheduleTask(uuid, schedule.id, task?.id, values)
+            const payload = {
+                action: values.action,
+                payload: values.payload,
+                timeOffset: values.timeOffset,
+                continueOnFailure: values.continueOnFailure,
+                backupCategoryId:
+                    values.action === 'backup' && values.backupCategoryId ? Number(values.backupCategoryId) : null,
+            } as Parameters<typeof createOrUpdateScheduleTask>[3];
+
+            createOrUpdateScheduleTask(uuid, schedule.id, task?.id, payload)
                 .then((task) => {
                     let tasks = schedule.tasks.map((t) => (t.id === task.id ? task : t));
                     if (!schedule.tasks.find((t) => t.id === task.id)) {
@@ -114,6 +138,7 @@ const TaskDetailsModal = ({ schedule, task }: Props) => {
                 payload: task?.payload || '',
                 timeOffset: task?.timeOffset.toString() || '0',
                 continueOnFailure: task?.continueOnFailure || false,
+                backupCategoryId: task?.backupCategory ? task.backupCategory.id.toString() : '',
             }}
         >
             {({ isSubmitting, values }) => (
@@ -173,6 +198,24 @@ const TaskDetailsModal = ({ schedule, task }: Props) => {
                                 >
                                     <FormikField as={Textarea} name={'payload'} rows={6} />
                                 </FormikFieldWrapper>
+                                <div css={tw`mt-6`}>
+                                    <Label>Backup Category</Label>
+                                    <FormikFieldWrapper
+                                        name={'backupCategoryId'}
+                                        description={
+                                            'Select the backup category this task should use. Leave blank to create uncategorized backups.'
+                                        }
+                                    >
+                                        <FormikField as={Select} name={'backupCategoryId'} disabled={!categories}>
+                                            <option value={''}>No category</option>
+                                            {(categories || []).map((category) => (
+                                                <option key={category.id} value={category.id}>
+                                                    {`${category.name} (${category.currentBackupCount}/${category.maxBackups})`}
+                                                </option>
+                                            ))}
+                                        </FormikField>
+                                    </FormikFieldWrapper>
+                                </div>
                             </div>
                         )}
                     </div>

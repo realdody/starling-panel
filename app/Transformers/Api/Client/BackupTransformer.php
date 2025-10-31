@@ -23,6 +23,11 @@ class BackupTransformer extends BaseClientTransformer
             'bytes' => $backup->bytes,
             'created_at' => $backup->created_at->toAtomString(),
             'completed_at' => $backup->completed_at ? $backup->completed_at->toAtomString() : null,
+            'category' => $backup->relationLoaded('category') && $backup->category ? [
+                'id' => $backup->category->id,
+                'name' => $backup->category->name,
+                'max_backups' => $backup->category->max_backups,
+            ] : null,
         ];
     }
 }

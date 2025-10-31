@@ -51,6 +51,8 @@ use Pterodactyl\Exceptions\Http\Server\ServerStateConflictException;
  * @property int|null $allocations_count
  * @property \Illuminate\Database\Eloquent\Collection|\Pterodactyl\Models\Backup[] $backups
  * @property int|null $backups_count
+ * @property \Illuminate\Database\Eloquent\Collection|\Pterodactyl\Models\BackupCategory[] $backupCategories
+ * @property int|null $backup_categories_count
  * @property \Illuminate\Database\Eloquent\Collection|\Pterodactyl\Models\Database[] $databases
  * @property int|null $databases_count
  * @property Egg|null $egg
@@ -328,6 +330,11 @@ class Server extends Model
     public function backups(): HasMany
     {
         return $this->hasMany(Backup::class);
+    }
+
+    public function backupCategories(): HasMany
+    {
+        return $this->hasMany(BackupCategory::class);
     }
 
     /**
