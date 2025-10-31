@@ -2,7 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileAlt, faFileArchive, faFileImport, faFolder } from '@fortawesome/free-solid-svg-icons';
 import { encodePathSegments } from '@/helpers';
 import { differenceInHours, format, formatDistanceToNow } from 'date-fns';
-import React, { memo } from 'react';
+import React, { CSSProperties, memo } from 'react';
 import { FileObject } from '@/api/server/files/loadDirectory';
 import FileDropdownMenu from '@/components/server/files/FileDropdownMenu';
 import { ServerContext } from '@/state/server';
@@ -34,10 +34,15 @@ const Clickable: React.FC<{ file: FileObject }> = memo(({ file, children }) => {
     );
 }, isEqual);
 
-const FileObjectRow = ({ file }: { file: FileObject }) => (
+interface Props {
+    file: FileObject;
+    style?: CSSProperties;
+}
+
+const FileObjectRow = ({ file, style }: Props) => (
     <div
         className={styles.file_row}
-        key={file.name}
+        style={style}
         onContextMenu={(e) => {
             e.preventDefault();
             window.dispatchEvent(new CustomEvent(`pterodactyl:files:ctx:${file.key}`, { detail: e.clientX }));
@@ -67,6 +72,10 @@ const FileObjectRow = ({ file }: { file: FileObject }) => (
 );
 
 export default memo(FileObjectRow, (prevProps, nextProps) => {
+    if (prevProps.style !== nextProps.style) {
+        return false;
+    }
+
     /* eslint-disable @typescript-eslint/no-unused-vars */
     const { isArchiveType, isEditable, ...prevFile } = prevProps.file;
     const { isArchiveType: nextIsArchiveType, isEditable: nextIsEditable, ...nextFile } = nextProps.file;

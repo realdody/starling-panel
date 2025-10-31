@@ -15,8 +15,9 @@
 }
 
 .file_row {
-    @apply flex items-center cursor-pointer bg-neutral-700 rounded-sm mb-px text-sm no-underline;
+    @apply flex items-center cursor-pointer bg-neutral-700 rounded-sm text-sm no-underline border-b border-neutral-600;
     @apply hover:text-neutral-100 hover:bg-neutral-600;
+    min-height: 52px;
 
     & > .details {
         @apply flex flex-1 items-center text-neutral-300 no-underline px-4 py-2 overflow-hidden truncate;
@@ -25,4 +26,56 @@
             @apply cursor-default;
         }
     }
+}
+
+.list_header {
+    @apply flex items-center px-4 pb-2 text-xs uppercase tracking-wide text-neutral-500 gap-3;
+}
+
+.header_checkbox {
+    @apply w-10;
+}
+
+.header_icon {
+    @apply hidden sm:block w-8;
+}
+
+.header_button {
+    @apply flex items-center gap-2 uppercase tracking-wide text-neutral-500 transition-colors duration-150;
+
+    &:focus-visible {
+        @apply outline-none text-neutral-100;
+    }
+
+    &:hover {
+        @apply text-neutral-200;
+    }
+}
+
+.header_button_active {
+    @apply text-neutral-100;
+}
+
+.header_indicator {
+    @apply text-[0.65rem] leading-none;
+}
+
+.header_button_name {
+    @apply flex-1 text-left;
+}
+
+.header_button_size {
+    @apply hidden sm:flex justify-end w-1/6;
+}
+
+.header_button_modified {
+    @apply hidden md:flex justify-end w-1/5;
+}
+
+.header_actions {
+    @apply w-10;
+}
+
+.virtual_wrapper {
+    @apply relative w-full overflow-hidden rounded bg-neutral-700 border border-neutral-600;
 }
