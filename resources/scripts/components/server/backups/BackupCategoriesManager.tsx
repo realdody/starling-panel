@@ -12,7 +12,7 @@ import Input from '@/components/elements/Input';
 
 const BackupCategoriesManager = () => {
     const uuid = ServerContext.useStoreState((state) => state.server.data!.uuid);
-    const { data: categories, mutate, isLoading } = getServerBackupCategories();
+    const { data: categories, mutate, isValidating } = getServerBackupCategories();
     const { clearFlashes, clearAndAddHttpError } = useFlash();
 
     const [name, setName] = useState('');
@@ -141,7 +141,7 @@ const BackupCategoriesManager = () => {
                 </Button>
             </form>
             <div css={tw`space-y-3`}>
-                {isLoading ? (
+                {!categories && isValidating ? (
                     <p css={tw`text-sm text-neutral-300`}>Loading categories...</p>
                 ) : !categories || categories.length === 0 ? (
                     <p css={tw`text-sm text-neutral-400`}>No backup categories have been created yet.</p>

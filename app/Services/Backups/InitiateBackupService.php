@@ -125,29 +125,27 @@ class InitiateBackupService
             }
         }
 
-        $totalBackupsQuery = $this->repository->getNonFailedBackups($server);
-        $totalBackups = (clone $totalBackupsQuery)->count();
+        if (!$this->category) {
+            $totalBackupsQuery = $this->repository->getNonFailedBackups($server)->whereNull('backup_category_id');
+            $totalBackups = (clone $totalBackupsQuery)->count();
 
-        if ($server->backup_limit > 0 && $totalBackups >= $server->backup_limit) {
-            if (!$override) {
-                throw new TooManyBackupsException($server->backup_limit);
+            if ($server->backup_limit > 0 && $totalBackups >= $server->backup_limit) {
+                if (!$override) {
+                    throw new TooManyBackupsException($server->backup_limit);
+                }
+
+                /** @var Backup|null $oldest */
+                $oldest = (clone $totalBackupsQuery)
+                    ->where('is_locked', false)
+                    ->orderBy('created_at')
+                    ->first();
+
+                if (!$oldest) {
+                    throw new TooManyBackupsException($server->backup_limit);
+                }
+
+                $this->deleteBackupService->handle($oldest);
             }
-
-            $candidateQuery = (clone $totalBackupsQuery)
-                ->when($this->category, function ($query, BackupCategory $category) {
-                    return $query->where('backup_category_id', $category->id);
-                })
-                ->where('is_locked', false)
-                ->orderBy('created_at');
-
-            /** @var Backup|null $oldest */
-            $oldest = $candidateQuery->first();
-
-            if (!$oldest) {
-                throw new TooManyBackupsException($server->backup_limit);
-            }
-
-            $this->deleteBackupService->handle($oldest);
         }
 
         return $this->connection->transaction(function () use ($server, $name) {

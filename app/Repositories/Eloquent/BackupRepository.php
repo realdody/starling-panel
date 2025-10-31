@@ -41,6 +41,9 @@ class BackupRepository extends EloquentRepository
             ->when(!is_null($categoryId), function ($query) use ($categoryId) {
                 $query->where('backup_category_id', $categoryId);
             })
+            ->when(is_null($categoryId), function ($query) {
+                $query->whereNull('backup_category_id');
+            })
             ->where(function ($query) {
             $query->whereNull('completed_at')
                 ->orWhere('is_successful', true);
