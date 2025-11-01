@@ -337,6 +337,15 @@ class Server extends Model
         return $this->hasMany(BackupCategory::class);
     }
 
+    protected function childRouteBindingRelationshipName($childType)
+    {
+        if ($childType === 'category') {
+            return 'backupCategories';
+        }
+
+        return parent::childRouteBindingRelationshipName($childType);
+    }
+
     /**
      * Returns all mounts that have this server has mounted.
      */

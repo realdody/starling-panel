@@ -52,4 +52,9 @@ class BackupCategory extends Model
     {
         return $this->hasMany(Task::class, 'backup_category_id');
     }
+
+    public function getRouteKeyName(): string
+    {
+        return 'id';
+    }
 }

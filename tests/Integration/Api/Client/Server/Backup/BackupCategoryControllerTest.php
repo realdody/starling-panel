@@ -6,6 +6,8 @@ use Carbon\CarbonImmutable;
 use Pterodactyl\Models\Backup;
 use Pterodactyl\Models\BackupCategory;
 use Pterodactyl\Models\Permission;
+use Pterodactyl\Models\Schedule;
+use Pterodactyl\Models\Task;
 use Pterodactyl\Tests\Integration\Api\Client\ClientApiIntegrationTestCase;
 
 class BackupCategoryControllerTest extends ClientApiIntegrationTestCase
@@ -135,5 +137,55 @@ class BackupCategoryControllerTest extends ClientApiIntegrationTestCase
 
         $this->assertDatabaseMissing('backup_categories', ['id' => $category->id]);
         $this->assertDatabaseHas('backups', ['id' => $backup->id, 'backup_category_id' => null]);
+    }
+
+    public function testDeleteDetachesScheduledTasks(): void
+    {
+        [$user, $server] = $this->generateTestAccount();
+
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
+
+        /** @var BackupCategory $category */
+        $category = BackupCategory::factory()->create(['server_id' => $server->id]);
+
+        /** @var Task $task */
+        $task = Task::factory()->create([
+            'schedule_id' => $schedule->id,
+            'sequence_id' => 1,
+            'action' => Task::ACTION_BACKUP,
+            'payload' => '',
+            'backup_category_id' => $category->id,
+        ]);
+
+        $this->actingAs($user)
+            ->deleteJson($this->link($server, "/backup-categories/{$category->id}"))
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('backup_categories', ['id' => $category->id]);
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'backup_category_id' => null]);
+    }
+
+    public function testDeleteClearsSoftDeletedBackups(): void
+    {
+        [$user, $server] = $this->generateTestAccount();
+
+        /** @var BackupCategory $category */
+        $category = BackupCategory::factory()->create(['server_id' => $server->id]);
+
+        /** @var Backup $trashedBackup */
+        $trashedBackup = Backup::factory()->create([
+            'server_id' => $server->id,
+            'backup_category_id' => $category->id,
+        ]);
+
+        $trashedBackup->delete();
+
+        $this->actingAs($user)
+            ->deleteJson($this->link($server, "/backup-categories/{$category->id}"))
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('backup_categories', ['id' => $category->id]);
+        $this->assertDatabaseHas('backups', ['id' => $trashedBackup->id, 'backup_category_id' => null]);
     }
 }

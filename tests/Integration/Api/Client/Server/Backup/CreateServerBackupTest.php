@@ -70,6 +70,36 @@ class CreateServerBackupTest extends ClientApiIntegrationTestCase
             ->assertNotFound();
     }
 
+    public function testBackupIndexCountsBackupsAcrossCategories(): void
+    {
+        [$user, $server] = $this->generateTestAccount();
+
+        Backup::factory()->create([
+            'server_id' => $server->id,
+            'is_successful' => true,
+            'completed_at' => CarbonImmutable::now(),
+            'backup_category_id' => null,
+        ]);
+
+        /** @var BackupCategory $category */
+        $category = BackupCategory::factory()->create([
+            'server_id' => $server->id,
+            'max_backups' => 5,
+        ]);
+
+        Backup::factory()->create([
+            'server_id' => $server->id,
+            'is_successful' => true,
+            'completed_at' => CarbonImmutable::now(),
+            'backup_category_id' => $category->id,
+        ]);
+
+        $this->actingAs($user)
+            ->getJson($this->link($server, '/backups'))
+            ->assertOk()
+            ->assertJsonPath('meta.backup_count', 2);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();

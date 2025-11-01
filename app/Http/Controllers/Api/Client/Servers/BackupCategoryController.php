@@ -5,6 +5,7 @@ namespace Pterodactyl\Http\Controllers\Api\Client\Servers;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Pterodactyl\Http\Controllers\Api\Client\ClientApiController;
 use Pterodactyl\Http\Requests\Api\Client\Servers\Backups\DeleteBackupCategoryRequest;
 use Pterodactyl\Http\Requests\Api\Client\Servers\Backups\StoreBackupCategoryRequest;
@@ -86,7 +87,12 @@ class BackupCategoryController extends ClientApiController
             throw new NotFoundHttpException();
         }
 
-        $category->delete();
+        DB::transaction(function () use ($category): void {
+            $category->backups()->withTrashed()->update(['backup_category_id' => null]);
+            $category->tasks()->update(['backup_category_id' => null]);
+
+            $category->delete();
+        });
 
         return new JsonResponse(null, JsonResponse::HTTP_NO_CONTENT);
     }
