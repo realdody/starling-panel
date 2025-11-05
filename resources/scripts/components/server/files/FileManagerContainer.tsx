@@ -22,6 +22,7 @@ import { FileActionCheckbox } from '@/components/server/files/SelectFileCheckbox
 import { hashToPath } from '@/helpers';
 import style from './style.module.css';
 import { Button } from '@/components/elements/button/index';
+import Input from '@/components/elements/Input';
 
 type SortField = 'name' | 'modifiedAt' | 'size';
 type SortDirection = 'asc' | 'desc';
@@ -74,7 +75,7 @@ export default () => {
     const setDirectory = ServerContext.useStoreActions((actions) => actions.files.setDirectory);
 
     const setSelectedFiles = ServerContext.useStoreActions((actions) => actions.files.setSelectedFiles);
-    const selectedFilesLength = ServerContext.useStoreState((state) => state.files.selectedFiles.length);
+    const selectedFiles = ServerContext.useStoreState((state) => state.files.selectedFiles);
     const [sortField, setSortField] = useState<SortField>('name');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
     const [viewportHeight, setViewportHeight] = useState<number>(() =>
@@ -85,6 +86,9 @@ export default () => {
     const scrollOffsetRef = useRef(0);
     const scrollRafRef = useRef<number | null>(null);
     const [virtualScrollOffset, setVirtualScrollOffset] = useState(0);
+    const [filterTerm, setFilterTerm] = useState('');
+    const [isFilterActive, setIsFilterActive] = useState(false);
+    const filterInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         const handleResize = () => setViewportHeight(window.innerHeight);
@@ -102,7 +106,16 @@ export default () => {
         return buildSortedFiles(files, sortField, sortDirection);
     }, [files, sortField, sortDirection]);
 
-    const shouldVirtualize = sortedFiles.length > VIRTUALIZATION_THRESHOLD;
+    const normalizedFilter = filterTerm.trim().toLowerCase();
+    const visibleFiles = useMemo(() => {
+        if (!normalizedFilter) {
+            return sortedFiles;
+        }
+
+        return sortedFiles.filter((file) => file.name.toLowerCase().includes(normalizedFilter));
+    }, [sortedFiles, normalizedFilter]);
+
+    const shouldVirtualize = visibleFiles.length > VIRTUALIZATION_THRESHOLD;
 
     const updateVirtualOffset = useCallback(() => {
         if (typeof window === 'undefined') {
@@ -161,10 +174,15 @@ export default () => {
 
     useEffect(() => {
         updateVirtualOffset();
-    }, [sortedFiles.length, sortField, sortDirection, updateVirtualOffset]);
+    }, [visibleFiles.length, sortField, sortDirection, normalizedFilter, updateVirtualOffset]);
 
-    const allSelected = sortedFiles.length > 0 && selectedFilesLength === sortedFiles.length;
-    const partiallySelected = selectedFilesLength > 0 && selectedFilesLength < sortedFiles.length;
+    const selectedFilesSet = useMemo(() => new Set(selectedFiles), [selectedFiles]);
+    const visibleSelectedCount = useMemo(
+        () => visibleFiles.filter((file) => selectedFilesSet.has(file.name)).length,
+        [visibleFiles, selectedFilesSet]
+    );
+    const allSelected = visibleFiles.length > 0 && visibleSelectedCount === visibleFiles.length;
+    const partiallySelected = visibleSelectedCount > 0 && visibleSelectedCount < visibleFiles.length;
 
     useEffect(() => {
         if (selectAllRef.current) {
@@ -193,27 +211,27 @@ export default () => {
         return sortDirection === 'asc' ? '↑' : '↓';
     };
 
-    const totalVirtualizedHeight = useMemo(() => sortedFiles.length * ROW_HEIGHT, [sortedFiles.length]);
+    const totalVirtualizedHeight = useMemo(() => visibleFiles.length * ROW_HEIGHT, [visibleFiles.length]);
 
     const [virtualStartIndex, virtualEndIndex] = useMemo(() => {
         if (!shouldVirtualize) {
-            return [0, sortedFiles.length] as const;
+            return [0, visibleFiles.length] as const;
         }
 
         const visibleRowCount = Math.max(1, Math.ceil(viewportHeight / ROW_HEIGHT));
         const startIndex = Math.max(0, Math.floor(virtualScrollOffset / ROW_HEIGHT) - VIRTUALIZATION_OVERSCAN);
-        const endIndex = Math.min(sortedFiles.length, startIndex + visibleRowCount + VIRTUALIZATION_OVERSCAN * 2);
+        const endIndex = Math.min(visibleFiles.length, startIndex + visibleRowCount + VIRTUALIZATION_OVERSCAN * 2);
 
         return [startIndex, endIndex] as const;
-    }, [shouldVirtualize, viewportHeight, virtualScrollOffset, sortedFiles.length]);
+    }, [shouldVirtualize, viewportHeight, virtualScrollOffset, visibleFiles.length]);
 
     const virtualizedFiles = useMemo(() => {
         if (!shouldVirtualize) {
-            return sortedFiles;
+            return visibleFiles;
         }
 
-        return sortedFiles.slice(virtualStartIndex, virtualEndIndex);
-    }, [shouldVirtualize, sortedFiles, virtualStartIndex, virtualEndIndex]);
+        return visibleFiles.slice(virtualStartIndex, virtualEndIndex);
+    }, [shouldVirtualize, visibleFiles, virtualStartIndex, virtualEndIndex]);
 
     useEffect(() => {
         clearFlashes('files');
@@ -226,8 +244,57 @@ export default () => {
     }, [directory]);
 
     const onSelectAllClick = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSelectedFiles(e.currentTarget.checked ? sortedFiles.map((file) => file.name) : []);
+        setSelectedFiles(e.currentTarget.checked ? visibleFiles.map((file) => file.name) : []);
     };
+
+    const focusFilterInput = useCallback(() => {
+        setIsFilterActive(true);
+        if (typeof window !== 'undefined') {
+            window.requestAnimationFrame(() => {
+                filterInputRef.current?.focus();
+                filterInputRef.current?.select();
+            });
+        }
+    }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+                event.preventDefault();
+                focusFilterInput();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [focusFilterInput]);
+
+    const handleFilterButtonClick = useCallback(() => {
+        setIsFilterActive((current) => {
+            if (current) {
+                setFilterTerm('');
+                filterInputRef.current?.blur();
+                return false;
+            }
+
+            return true;
+        });
+    }, []);
+
+    useEffect(() => {
+        if (isFilterActive) {
+            focusFilterInput();
+        }
+    }, [focusFilterInput, isFilterActive]);
+
+    useEffect(() => {
+        setFilterTerm('');
+        setIsFilterActive(false);
+        filterInputRef.current?.blur();
+    }, [directory]);
+
+    const filterVisible = isFilterActive || filterTerm.length > 0;
 
     if (error) {
         return <ServerError message={httpErrorToHuman(error)} onRetry={() => mutate()} />;
@@ -236,7 +303,7 @@ export default () => {
     return (
         <ServerContentBlock title={'File Manager'} showFlashKey={'files'}>
             <ErrorBoundary>
-                <div className={'flex flex-wrap-reverse md:flex-nowrap mb-4'}>
+                <div className={'flex flex-wrap-reverse md:flex-nowrap mb-4 gap-4 md:gap-6'}>
                     <FileManagerBreadcrumbs
                         renderLeft={
                             <FileActionCheckbox
@@ -248,23 +315,53 @@ export default () => {
                             />
                         }
                     />
-                    <Can action={'file.create'}>
-                        <div className={style.manager_actions}>
-                            <FileManagerStatus />
-                            <NewDirectoryButton />
-                            <UploadButton />
-                            <NavLink to={`/server/${id}/files/new${window.location.hash}`}>
-                                <Button>New File</Button>
-                            </NavLink>
+                    <div className={'flex-1 flex flex-col gap-3 md:items-end'}>
+                        <div className={style.filter_container}>
+                            <div className={style.filter_controls}>
+                                <Button
+                                    type={'button'}
+                                    variant={Button.Variants.Secondary}
+                                    size={Button.Sizes.Small}
+                                    className={style.filter_button}
+                                    aria-expanded={filterVisible}
+                                    aria-controls={'file-filter-input'}
+                                    onClick={handleFilterButtonClick}
+                                >
+                                    {filterVisible ? 'Clear Filter' : 'Filter Files'}
+                                </Button>
+                                {filterVisible && (
+                                    <Input
+                                        id={'file-filter-input'}
+                                        ref={filterInputRef}
+                                        value={filterTerm}
+                                        autoComplete={'off'}
+                                        placeholder={'Filter this directory (Ctrl+F)'}
+                                        onChange={(event) => setFilterTerm(event.target.value)}
+                                        className={style.filter_input}
+                                    />
+                                )}
+                            </div>
                         </div>
-                    </Can>
+                        <Can action={'file.create'}>
+                            <div className={style.manager_actions}>
+                                <FileManagerStatus />
+                                <NewDirectoryButton />
+                                <UploadButton />
+                                <NavLink to={`/server/${id}/files/new${window.location.hash}`}>
+                                    <Button>New File</Button>
+                                </NavLink>
+                            </div>
+                        </Can>
+                    </div>
                 </div>
             </ErrorBoundary>
             {!files ? (
                 <Spinner size={'large'} centered />
             ) : (
                 <>
-                    {!files.length ? (
+                    {filterVisible && files.length > 0 && !visibleFiles.length ? (
+                        <p css={tw`text-sm text-neutral-400 text-center`}>No files match your filter.</p>
+                    ) : !files.length ? (
                         <p css={tw`text-sm text-neutral-400 text-center`}>This directory seems to be empty.</p>
                     ) : (
                         <CSSTransition classNames={'fade'} timeout={150} appear in>
@@ -328,7 +425,7 @@ export default () => {
                                         })}
                                     </div>
                                 ) : (
-                                    sortedFiles.map((file) => <FileObjectRow key={file.key} file={file} />)
+                                    visibleFiles.map((file) => <FileObjectRow key={file.key} file={file} />)
                                 )}
                                 <MassActionsBar />
                             </div>
