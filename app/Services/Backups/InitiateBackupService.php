@@ -22,6 +22,8 @@ class InitiateBackupService
 
     private bool $isLocked = false;
 
+    private bool $bypassRateLimit = false;
+
     private ?BackupCategory $category = null;
 
     /**
@@ -43,6 +45,17 @@ class InitiateBackupService
     public function setIsLocked(bool $isLocked): self
     {
         $this->isLocked = $isLocked;
+
+        return $this;
+    }
+
+    /**
+     * Set if the backup should bypass the rate limit check.
+     * Useful for automated scheduled backups.
+     */
+    public function setBypassRateLimit(bool $bypass): self
+    {
+        $this->bypassRateLimit = $bypass;
 
         return $this;
     }
@@ -86,14 +99,17 @@ class InitiateBackupService
      */
     public function handle(Server $server, ?string $name = null, bool $override = false): Backup
     {
-        $limit = config('backups.throttles.limit');
-        $period = config('backups.throttles.period');
-        if ($period > 0) {
-            $previous = $this->repository->getBackupsGeneratedDuringTimespan($server->id, $period);
-            if ($previous->count() >= $limit) {
-                $message = sprintf('Only %d backups may be generated within a %d second span of time.', $limit, $period);
+        // Only enforce rate limit if not bypassed (e.g., for scheduled backups)
+        if (!$this->bypassRateLimit) {
+            $limit = config('backups.throttles.limit');
+            $period = config('backups.throttles.period');
+            if ($period > 0) {
+                $previous = $this->repository->getBackupsGeneratedDuringTimespan($server->id, $period);
+                if ($previous->count() >= $limit) {
+                    $message = sprintf('Only %d backups may be generated within a %d second span of time.', $limit, $period);
 
-                throw new TooManyRequestsHttpException((int) CarbonImmutable::now()->diffInSeconds($previous->last()->created_at->addSeconds($period)), $message);
+                    throw new TooManyRequestsHttpException((int) CarbonImmutable::now()->diffInSeconds($previous->last()->created_at->addSeconds($period)), $message);
+                }
             }
         }
 

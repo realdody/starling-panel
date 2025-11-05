@@ -72,6 +72,7 @@ class RunTaskJob extends Job implements ShouldQueue
                     $backupService
                         ->setIgnoredFiles(explode(PHP_EOL, $this->task->payload))
                         ->setCategory($this->task->backupCategory)
+                        ->setBypassRateLimit(true) // Scheduled backups bypass rate limit
                         ->handle($server, null, true);
                     break;
                 default:
