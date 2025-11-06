@@ -23,6 +23,7 @@ import { restoreServerBackup } from '@/api/server/backups';
 import http, { httpErrorToHuman } from '@/api/http';
 import { Dialog } from '@/components/elements/dialog';
 import getServerBackupCategories from '@/api/swr/getServerBackupCategories';
+import { localizeBackupName } from '@/lib/localizeBackupName';
 
 interface Props {
     backup: ServerBackup;
@@ -129,7 +130,7 @@ export default ({ backup }: Props) => {
             <Dialog.Confirm
                 open={modal === 'unlock'}
                 onClose={() => setModal('')}
-                title={`Unlock "${backup.name}"`}
+                title={`Unlock "${localizeBackupName(backup.name)}"`}
                 onConfirmed={onLockToggle}
             >
                 This backup will no longer be protected from automated or accidental deletions.
@@ -138,7 +139,7 @@ export default ({ backup }: Props) => {
                 open={modal === 'restore'}
                 onClose={() => setModal('')}
                 confirm={'Restore'}
-                title={`Restore "${backup.name}"`}
+                title={`Restore "${localizeBackupName(backup.name)}"`}
                 onConfirmed={() => doRestorationAction()}
             >
                 <p>
@@ -160,7 +161,7 @@ export default ({ backup }: Props) => {
                 </p>
             </Dialog.Confirm>
             <Dialog.Confirm
-                title={`Delete "${backup.name}"`}
+                title={`Delete "${localizeBackupName(backup.name)}"`}
                 confirm={'Continue'}
                 open={modal === 'delete'}
                 onClose={() => setModal('')}

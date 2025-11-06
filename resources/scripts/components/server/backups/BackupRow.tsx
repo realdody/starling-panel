@@ -12,6 +12,7 @@ import GreyRowBox from '@/components/elements/GreyRowBox';
 import getServerBackups from '@/api/swr/getServerBackups';
 import { ServerBackup } from '@/api/server/types';
 import { SocketEvent } from '@/components/server/events';
+import { localizeBackupName } from '@/lib/localizeBackupName';
 
 interface Props {
     backup: ServerBackup;
@@ -70,7 +71,7 @@ export default ({ backup, className }: Props) => {
                                 Failed
                             </span>
                         )}
-                        <p css={tw`break-words truncate`}>{backup.name}</p>
+                        <p css={tw`break-words truncate`}>{localizeBackupName(backup.name)}</p>
                         {backup.completedAt !== null && backup.isSuccessful && (
                             <span css={tw`ml-3 text-neutral-300 text-xs font-extralight hidden sm:inline`}>
                                 {bytesToString(backup.bytes)}
