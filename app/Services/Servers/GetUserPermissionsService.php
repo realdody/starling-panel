@@ -25,7 +25,22 @@ class GetUserPermissionsService
 
             return $permissions;
         }
+        // Find roles that user has AND server uses
+        $matchingRoles = $user->roles()
+            ->whereIn('roles.id', $server->roles()->pluck('roles.id'))
+            ->get();
 
+        if ($matchingRoles->isNotEmpty()) {
+            // Merge permissions from all matching roles
+            return $matchingRoles
+                ->pluck('permissions')
+                ->flatten()
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        // Fall back to legacy subuser permissions if no matching roles
         /** @var \Pterodactyl\Models\Subuser|null $subuserPermissions */
         $subuserPermissions = $server->subusers()->where('user_id', $user->id)->first();
 

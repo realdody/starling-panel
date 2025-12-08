@@ -111,6 +111,11 @@
                                 <i class="fa fa-users"></i> <span>Users</span>
                             </a>
                         </li>
+                        <li class="{{ ! starts_with(Route::currentRouteName(), 'admin.roles') ?: 'active' }}">
+                            <a href="{{ route('admin.roles') }}">
+                                <i class="fa fa-id-badge"></i> <span>Roles</span>
+                            </a>
+                        </li>
                         <li class="header">SERVICE MANAGEMENT</li>
                         <li class="{{ ! starts_with(Route::currentRouteName(), 'admin.mounts') ?: 'active' }}">
                             <a href="{{ route('admin.mounts') }}">

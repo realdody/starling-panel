@@ -270,4 +270,17 @@ class ServersController extends Controller
 
         return redirect()->route('admin.servers.view.mounts', $server->id);
     }
+
+    /**
+     * Sync roles assigned to a server.
+     */
+    public function syncRoles(Request $request, Server $server): RedirectResponse
+    {
+        $roles = $request->input('roles', []);
+        $server->roles()->sync($roles);
+
+        $this->alert->success('Server roles updated successfully.')->flash();
+
+        return redirect()->route('admin.servers.view.manage', $server->id);
+    }
 }

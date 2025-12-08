@@ -124,6 +124,10 @@ class UserController extends Controller
             ->setUserLevel(User::USER_LEVEL_ADMIN)
             ->handle($user, $request->normalize());
 
+        // Sync roles if provided
+        $roles = $request->input('roles', []);
+        $user->roles()->sync($roles);
+
         $this->alert->success(trans('admin/user.notices.account_updated'))->flash();
 
         return redirect()->route('admin.users.view', $user->id);

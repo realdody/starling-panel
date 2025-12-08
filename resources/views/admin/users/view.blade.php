@@ -101,6 +101,32 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-6">
+            <div class="box">
+                <div class="box-header with-border">
+                    <h3 class="box-title">Roles</h3>
+                </div>
+                <div class="box-body">
+                    <p class="text-muted"><small>Assign global roles to this user. They will have access to any server that also has these roles.</small></p>
+                    @php $allRoles = \Pterodactyl\Models\Role::orderBy('name')->get(); @endphp
+                    @foreach($allRoles as $role)
+                        <div class="checkbox">
+                            <label>
+                                <input type="checkbox" name="roles[]" value="{{ $role->id }}"
+                                    {{ $user->roles->contains($role->id) ? 'checked' : '' }} />
+                                <strong>{{ $role->name }}</strong>
+                                @if($role->description)
+                                    &mdash; <span class="text-muted">{{ Str::limit($role->description, 50) }}</span>
+                                @endif
+                            </label>
+                        </div>
+                    @endforeach
+                    @if($allRoles->isEmpty())
+                        <p class="text-muted">No roles have been created yet. <a href="{{ route('admin.roles.new') }}">Create one</a>.</p>
+                    @endif
+                </div>
+            </div>
+        </div>
     </form>
     <div class="col-xs-12">
         <div class="box box-danger">
