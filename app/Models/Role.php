@@ -28,6 +28,14 @@ class Role extends Model
     protected $table = 'roles';
 
     /**
+     * Use 'id' for route model binding since Role doesn't have a uuid.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'id';
+    }
+
+    /**
      * Fields that are mass assignable.
      */
     protected $fillable = [
