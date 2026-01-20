@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import BoringAvatar, { AvatarProps } from 'boring-avatars';
 import { useStoreState } from '@/state/hooks';
-import crypto from 'crypto';
+import md5 from 'md5';
 
 const palette = ['#FFAD08', '#EDD75A', '#73B06F', '#0C8F8F', '#587291'];
 
@@ -30,7 +30,7 @@ const _UserAvatar = ({ variant = 'beam', className, style, size, square }: UserA
         }
 
         try {
-            return crypto.createHash('md5').update(email).digest('hex');
+            return md5(email);
         } catch (error) {
             console.warn(error);
             return null;
