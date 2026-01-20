@@ -33,7 +33,7 @@
 
                         <div class="form-group">
                             <label for="pDescription" class="form-label">Description</label>
-                            <textarea id="pDescription" name="description" class="form-control" rows="3">{{ old('description', $role->description) }}</textarea>
+                            <textarea id="pDescription" name="description" class="form-control" rows="3" style="resize: none;">{{ old('description', $role->description) }}</textarea>
                         </div>
                     </div>
 
@@ -73,10 +73,10 @@
                                 <p class="text-muted small">{{ $data['description'] }}</p>
 
                                 @foreach ($data['keys'] as $key => $description)
-                                    <div class="checkbox">
-                                        <label>
-                                            <input type="checkbox" name="permissions[]" value="{{ $category }}.{{ $key }}"
-                                                {{ in_array("$category.$key", old('permissions', $role->permissions)) ? 'checked' : '' }} />
+                                    <div class="checkbox icheck-primary">
+                                        <input type="checkbox" id="perm_{{ $category }}_{{ $key }}" name="permissions[]" value="{{ $category }}.{{ $key }}"
+                                            {{ in_array("$category.$key", old('permissions', $role->permissions)) ? 'checked' : '' }} />
+                                        <label for="perm_{{ $category }}_{{ $key }}">
                                             <strong>{{ $key }}</strong> &mdash; {{ $description }}
                                         </label>
                                     </div>
