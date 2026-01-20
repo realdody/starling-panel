@@ -18,7 +18,7 @@ use Webmozart\Assert\Assert;
 
 class InitiateBackupService
 {
-    private ?array $ignoredFiles;
+    private array $ignoredFiles = [];
 
     private bool $isLocked = false;
 
@@ -69,7 +69,7 @@ class InitiateBackupService
     {
         if (is_array($ignored)) {
             foreach ($ignored as $value) {
-                Assert::string($value);
+                Assert::string($value); // @phpstan-ignore staticMethod.alreadyNarrowedType
             }
         }
 
@@ -171,7 +171,7 @@ class InitiateBackupService
                 'backup_category_id' => $this->category?->id,
                 'uuid' => Uuid::uuid4()->toString(),
                 'name' => trim($name) ?: sprintf('Backup at %s', CarbonImmutable::now()->toDateTimeString()),
-                'ignored_files' => array_values($this->ignoredFiles ?? []),
+                'ignored_files' => array_values($this->ignoredFiles),
                 'disk' => $this->backupManager->getDefaultAdapter(),
                 'is_locked' => $this->isLocked,
             ], true, true);

@@ -28,7 +28,7 @@ use Pterodactyl\Contracts\Extensions\HashidsInterface;
  * @property \Carbon\Carbon $updated_at
  * @property string $hashid
  * @property Server $server
- * @property \Pterodactyl\Models\Task[]|\Illuminate\Support\Collection $tasks
+ * @property \Illuminate\Database\Eloquent\Collection<int, \Pterodactyl\Models\Task> $tasks
  */
 class Schedule extends Model
 {
@@ -135,6 +135,8 @@ class Schedule extends Model
 
     /**
      * Return tasks belonging to a schedule.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<\Pterodactyl\Models\Task, $this>
      */
     public function tasks(): HasMany
     {
@@ -143,6 +145,8 @@ class Schedule extends Model
 
     /**
      * Return the server model that a schedule belongs to.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<\Pterodactyl\Models\Server, $this>
      */
     public function server(): BelongsTo
     {
