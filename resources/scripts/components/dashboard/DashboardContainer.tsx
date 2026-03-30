@@ -28,7 +28,7 @@ export default () => {
 
     const { data: servers, error } = useSWR<PaginatedResult<Server>>(
         ['/api/client/servers', showOnlyAdmin && rootAdmin, page],
-        () => getServers({ page, type: showOnlyAdmin && rootAdmin ? 'admin' : undefined })
+        () => getServers({ page, type: showOnlyAdmin && rootAdmin ? 'admin' : undefined }),
     );
 
     useEffect(() => {
@@ -139,16 +139,6 @@ export default () => {
                         }
                     </Pagination>
                 )}
-            </div>
-            <div className='homeAds'>
-                <iframe
-                    src='https://discord.com/widget?id=896736801807560754&theme=dark'
-                    width='100%'
-                    height='350'
-                    allowTransparency={true}
-                    frameBorder='0'
-                    sandbox='allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts'
-                ></iframe>
             </div>
             <div className='clear'></div>
         </PageContentBlock>

@@ -194,17 +194,9 @@ select, textarea {
     clear:both;
 }
 .homeServers {
-    width:calc(100% - 300px);
+    width:100%;
     box-sizing:border-box;
     float:left;
-}
-.homeAds {
-    width:300px;
-    box-sizing:border-box;
-    float:right;
-    padding:15px;
-    padding-right:0;
-    padding-top:35px;
 }
 .homeServers h2 {
     text-transform:uppercase;
@@ -554,9 +546,6 @@ select, textarea {
 }
 
 @media(max-device-width:1200px) {
-    .homeAds {
-        display:none;
-    }
     .homeServers {
         width:100%;
     }
