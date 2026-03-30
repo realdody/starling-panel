@@ -5,6 +5,7 @@ import { FitAddon } from 'xterm-addon-fit';
 import { SearchAddon } from 'xterm-addon-search';
 import { SearchBarAddon } from 'xterm-addon-search-bar';
 import { WebLinksAddon } from 'xterm-addon-web-links';
+import { Unicode11Addon } from 'xterm-addon-unicode11';
 import { ScrollDownHelperAddon } from '@/plugins/XtermScrollDownHelperAddon';
 import SpinnerOverlay from '@/components/elements/SpinnerOverlay';
 import { ServerContext } from '@/state/server';
@@ -113,7 +114,7 @@ const ANSI_BACKGROUND_MAP: Record<number, string> = {
 const buildStyle = (
     color?: string,
     fontWeight?: CSSProperties['fontWeight'],
-    backgroundColor?: string
+    backgroundColor?: string,
 ): CSSProperties | undefined => {
     if (!color && !fontWeight && !backgroundColor) {
         return undefined;
@@ -293,6 +294,7 @@ export default () => {
     const searchAddon = useMemo(() => (terminal ? new SearchAddon() : null), [terminal]);
     const searchBar = useMemo(() => (searchAddon ? new SearchBarAddon({ searchAddon }) : null), [searchAddon]);
     const webLinksAddon = useMemo(() => (terminal ? new WebLinksAddon() : null), [terminal]);
+    const unicode11Addon = useMemo(() => (terminal ? new Unicode11Addon() : null), [terminal]);
     const scrollDownHelperAddon = useMemo(() => (terminal ? new ScrollDownHelperAddon() : null), [terminal]);
     const { connected, instance } = ServerContext.useStoreState((state) => state.socket);
     const [canSendCommands] = usePermissions(['control.console']);
@@ -320,12 +322,12 @@ export default () => {
                 });
             }
         },
-        [TERMINAL_PRELUDE, isTouchDevice, terminal]
+        [TERMINAL_PRELUDE, isTouchDevice, terminal],
     );
 
     const handleConsoleOutput = useCallback(
         (line: string, prelude = false) => appendConsoleLine(line, { prelude }),
-        [appendConsoleLine]
+        [appendConsoleLine],
     );
 
     const handleTransferStatus = useCallback(
@@ -341,17 +343,17 @@ export default () => {
                     });
             }
         },
-        [appendConsoleLine]
+        [appendConsoleLine],
     );
 
     const handleDaemonErrorOutput = useCallback(
         (line: string) => appendConsoleLine(line, { prelude: true, prefix: '\u001b[1m\u001b[41m' }),
-        [appendConsoleLine]
+        [appendConsoleLine],
     );
 
     const handlePowerChangeEvent = useCallback(
         (state: string) => appendConsoleLine('Server marked as ' + state + '...', { prelude: true }),
-        [appendConsoleLine]
+        [appendConsoleLine],
     );
 
     const handleCommandKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -396,9 +398,11 @@ export default () => {
         if (searchAddon) terminal.loadAddon(searchAddon);
         if (searchBar) terminal.loadAddon(searchBar);
         if (webLinksAddon) terminal.loadAddon(webLinksAddon);
+        if (unicode11Addon) terminal.loadAddon(unicode11Addon);
         if (scrollDownHelperAddon) terminal.loadAddon(scrollDownHelperAddon);
 
         terminal.open(ref.current);
+        terminal.unicode.activeVersion = '11';
         fitAddon?.fit();
 
         terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
@@ -416,7 +420,7 @@ export default () => {
             }
             return true;
         });
-    }, [fitAddon, ref, scrollDownHelperAddon, searchAddon, searchBar, terminal, webLinksAddon]);
+    }, [fitAddon, ref, scrollDownHelperAddon, searchAddon, searchBar, terminal, unicode11Addon, webLinksAddon]);
 
     useEventListener(
         'resize',
@@ -424,7 +428,7 @@ export default () => {
             if (terminal?.element) {
                 fitAddon?.fit();
             }
-        }, 100)
+        }, 100),
     );
 
     useEffect(() => {
@@ -528,7 +532,7 @@ export default () => {
                     <div
                         className={classNames(
                             'text-gray-100 peer-focus:text-gray-50 peer-focus:animate-pulse',
-                            styles.command_icon
+                            styles.command_icon,
                         )}
                     >
                         <ChevronDoubleRightIcon className={'w-4 h-4'} />
