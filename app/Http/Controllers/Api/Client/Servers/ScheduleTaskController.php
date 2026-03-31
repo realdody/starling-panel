@@ -44,16 +44,16 @@ class ScheduleTaskController extends ClientApiController
             throw new ServiceLimitExceededException("Schedules may not have more than $limit tasks associated with them. Creating this task would put this schedule over the limit.");
         }
 
-        if ($server->backup_limit === 0 && $request->action === 'backup') {
-            throw new HttpForbiddenException("A backup task cannot be created when the server's backup limit is set to 0.");
-        }
-
         $categoryId = null;
         if ($request->action === Task::ACTION_BACKUP && $request->filled('backup_category_id')) {
             $categoryId = $server->backupCategories()->where('id', $request->integer('backup_category_id'))->value('id');
             if (!$categoryId) {
                 throw new NotFoundHttpException();
             }
+        }
+
+        if ($server->backup_limit === 0 && $request->action === Task::ACTION_BACKUP && is_null($categoryId)) {
+            throw new HttpForbiddenException("A backup task cannot be created when the server's backup limit is set to 0.");
         }
 
         /** @var Task|null $lastTask */
@@ -113,10 +113,6 @@ class ScheduleTaskController extends ClientApiController
             throw new NotFoundHttpException();
         }
 
-        if ($server->backup_limit === 0 && $request->action === 'backup') {
-            throw new HttpForbiddenException("A backup task cannot be created when the server's backup limit is set to 0.");
-        }
-
         if ($request->action === Task::ACTION_BACKUP) {
             if ($request->has('backup_category_id')) {
                 if ($request->filled('backup_category_id')) {
@@ -132,6 +128,10 @@ class ScheduleTaskController extends ClientApiController
             }
         } else {
             $categoryId = null;
+        }
+
+        if ($server->backup_limit === 0 && $request->action === Task::ACTION_BACKUP && is_null($categoryId)) {
+            throw new HttpForbiddenException("A backup task cannot be created when the server's backup limit is set to 0.");
         }
 
         $this->connection->transaction(function () use ($request, $schedule, $task, $categoryId) {

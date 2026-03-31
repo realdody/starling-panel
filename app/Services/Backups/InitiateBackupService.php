@@ -18,6 +18,8 @@ use Webmozart\Assert\Assert;
 
 class InitiateBackupService
 {
+    private const LOCK_TIMEOUT = 60;
+
     private array $ignoredFiles = [];
 
     private bool $isLocked = false;
@@ -99,88 +101,126 @@ class InitiateBackupService
      */
     public function handle(Server $server, ?string $name = null, bool $override = false): Backup
     {
-        // Only enforce rate limit if not bypassed (e.g., for scheduled backups)
-        if (!$this->bypassRateLimit) {
-            $limit = config('backups.throttles.limit');
-            $period = config('backups.throttles.period');
-            if ($period > 0) {
-                $previous = $this->repository->getBackupsGeneratedDuringTimespan($server->id, $period);
-                if ($previous->count() >= $limit) {
-                    $message = sprintf('Only %d backups may be generated within a %d second span of time.', $limit, $period);
+        $this->acquireLock($server);
 
-                    throw new TooManyRequestsHttpException((int) CarbonImmutable::now()->diffInSeconds($previous->last()->created_at->addSeconds($period)), $message);
+        try {
+            // Only enforce rate limit if not bypassed (e.g., for scheduled backups).
+            if (!$this->bypassRateLimit) {
+                $limit = config('backups.throttles.limit');
+                $period = config('backups.throttles.period');
+                if ($period > 0) {
+                    $previous = $this->repository->getBackupsGeneratedDuringTimespan($server->id, $period);
+                    if ($previous->count() >= $limit) {
+                        $message = sprintf('Only %d backups may be generated within a %d second span of time.', $limit, $period);
+
+                        throw new TooManyRequestsHttpException((int) CarbonImmutable::now()->diffInSeconds($previous->last()->created_at->addSeconds($period)), $message);
+                    }
                 }
             }
-        }
 
-        if ($this->category && $this->category->server_id !== $server->id) {
-            throw new InvalidArgumentException('The provided backup category does not belong to the specified server.');
-        }
-
-        if ($this->category) {
-            $categoryLimit = $this->category->max_backups;
-            $categoryBackups = $this->repository->getNonFailedBackups($server, $this->category->id);
-            $categoryCount = (clone $categoryBackups)->count();
-
-            if ($categoryCount >= $categoryLimit) {
-                if (!$override) {
-                    throw new TooManyBackupsException($categoryLimit, $this->category->name);
-                }
-
-                /** @var Backup|null $oldestCategoryBackup */
-                $oldestCategoryBackup = (clone $categoryBackups)
-                    ->where('is_locked', false)
-                    ->orderBy('created_at')
-                    ->first();
-
-                if (!$oldestCategoryBackup) {
-                    throw new TooManyBackupsException($categoryLimit, $this->category->name);
-                }
-
-                $this->deleteBackupService->handle($oldestCategoryBackup);
+            if ($this->category && $this->category->server_id !== $server->id) {
+                throw new InvalidArgumentException('The provided backup category does not belong to the specified server.');
             }
-        }
 
-        if (!$this->category) {
-            $totalBackupsQuery = $this->repository->getNonFailedBackups($server)->whereNull('backup_category_id');
-            $totalBackups = (clone $totalBackupsQuery)->count();
+            if ($this->category) {
+                $categoryLimit = $this->category->max_backups;
+                $categoryBackups = $this->repository->getNonFailedBackups($server, $this->category->id);
+                $categoryCount = (clone $categoryBackups)->count();
 
-            if ($server->backup_limit > 0 && $totalBackups >= $server->backup_limit) {
-                if (!$override) {
-                    throw new TooManyBackupsException($server->backup_limit);
+                if ($categoryCount >= $categoryLimit) {
+                    if (!$override) {
+                        throw new TooManyBackupsException($categoryLimit, $this->category->name);
+                    }
+
+                    /** @var Backup|null $oldestCategoryBackup */
+                    $oldestCategoryBackup = (clone $categoryBackups)
+                        ->whereNotNull('completed_at')
+                        ->where('is_successful', true)
+                        ->where('is_locked', false)
+                        ->orderBy('completed_at')
+                        ->orderBy('id')
+                        ->first();
+
+                    if (!$oldestCategoryBackup) {
+                        throw new TooManyBackupsException($categoryLimit, $this->category->name);
+                    }
+
+                    $this->deleteBackupService->handle($oldestCategoryBackup);
                 }
-
-                /** @var Backup|null $oldest */
-                $oldest = (clone $totalBackupsQuery)
-                    ->where('is_locked', false)
-                    ->orderBy('created_at')
-                    ->first();
-
-                if (!$oldest) {
-                    throw new TooManyBackupsException($server->backup_limit);
-                }
-
-                $this->deleteBackupService->handle($oldest);
             }
+
+            if (!$this->category) {
+                $totalBackupsQuery = $this->repository->getNonFailedBackups($server)->whereNull('backup_category_id');
+                $totalBackups = (clone $totalBackupsQuery)->count();
+
+                if ($server->backup_limit > 0 && $totalBackups >= $server->backup_limit) {
+                    if (!$override) {
+                        throw new TooManyBackupsException($server->backup_limit);
+                    }
+
+                    /** @var Backup|null $oldest */
+                    $oldest = (clone $totalBackupsQuery)
+                        ->whereNotNull('completed_at')
+                        ->where('is_successful', true)
+                        ->where('is_locked', false)
+                        ->orderBy('completed_at')
+                        ->orderBy('id')
+                        ->first();
+
+                    if (!$oldest) {
+                        throw new TooManyBackupsException($server->backup_limit);
+                    }
+
+                    $this->deleteBackupService->handle($oldest);
+                }
+            }
+
+            return $this->connection->transaction(function () use ($server, $name) {
+                /** @var Backup $backup */
+                $backup = $this->repository->create([
+                    'server_id' => $server->id,
+                    'backup_category_id' => $this->category?->id,
+                    'uuid' => Uuid::uuid4()->toString(),
+                    'name' => trim($name) ?: sprintf('Backup at %s', CarbonImmutable::now()->toDateTimeString()),
+                    'ignored_files' => array_values($this->ignoredFiles),
+                    'disk' => $this->backupManager->getDefaultAdapter(),
+                    'is_locked' => $this->isLocked,
+                ], true, true);
+
+                $this->daemonBackupRepository->setServer($server)
+                    ->setBackupAdapter($this->backupManager->getDefaultAdapter())
+                    ->backup($backup);
+
+                return $backup;
+            });
+        } finally {
+            $this->releaseLock($server);
         }
+    }
 
-        return $this->connection->transaction(function () use ($server, $name) {
-            /** @var Backup $backup */
-            $backup = $this->repository->create([
-                'server_id' => $server->id,
-                'backup_category_id' => $this->category?->id,
-                'uuid' => Uuid::uuid4()->toString(),
-                'name' => trim($name) ?: sprintf('Backup at %s', CarbonImmutable::now()->toDateTimeString()),
-                'ignored_files' => array_values($this->ignoredFiles),
-                'disk' => $this->backupManager->getDefaultAdapter(),
-                'is_locked' => $this->isLocked,
-            ], true, true);
+    private function acquireLock(Server $server): void
+    {
+        $result = (array) $this->connection->selectOne(
+            'SELECT GET_LOCK(?, ?) AS acquired_lock',
+            [$this->lockName($server), self::LOCK_TIMEOUT]
+        );
 
-            $this->daemonBackupRepository->setServer($server)
-                ->setBackupAdapter($this->backupManager->getDefaultAdapter())
-                ->backup($backup);
+        if ((int) ($result['acquired_lock'] ?? 0) !== 1) {
+            throw new TooManyRequestsHttpException(self::LOCK_TIMEOUT, 'Another backup operation is already in progress for this server.');
+        }
+    }
 
-            return $backup;
-        });
+    private function releaseLock(Server $server): void
+    {
+        try {
+            $this->connection->selectOne('SELECT RELEASE_LOCK(?) AS released_lock', [$this->lockName($server)]);
+        } catch (\Throwable) {
+            // Nothing to do here: if the connection is gone MySQL releases the lock automatically.
+        }
+    }
+
+    private function lockName(Server $server): string
+    {
+        return sprintf('server-backup:%d', $server->id);
     }
 }

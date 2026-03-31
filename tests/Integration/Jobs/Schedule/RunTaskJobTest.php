@@ -4,15 +4,19 @@ namespace Pterodactyl\Tests\Integration\Jobs\Schedule;
 
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Mockery;
 use GuzzleHttp\Psr7\Request;
+use Pterodactyl\Models\Backup;
 use Pterodactyl\Models\Task;
 use GuzzleHttp\Psr7\Response;
 use Pterodactyl\Models\Server;
 use Pterodactyl\Models\Schedule;
+use Pterodactyl\Models\BackupCategory;
 use Illuminate\Support\Facades\Bus;
 use Pterodactyl\Jobs\Schedule\RunTaskJob;
 use GuzzleHttp\Exception\BadResponseException;
 use Pterodactyl\Tests\Integration\IntegrationTestCase;
+use Pterodactyl\Services\Backups\InitiateBackupService;
 use Pterodactyl\Repositories\Wings\DaemonPowerRepository;
 use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
 
@@ -169,6 +173,54 @@ class RunTaskJobTest extends IntegrationTestCase
         $this->assertFalse($task->is_queued);
         $this->assertFalse($schedule->is_processing);
         $this->assertTrue(Carbon::now()->isSameAs(\DateTimeInterface::ATOM, $schedule->last_run_at));
+    }
+
+    public function testBackupTaskUsesScheduledBackupServiceFlow(): void
+    {
+        $server = $this->createServerModel();
+
+        /** @var BackupCategory $category */
+        $category = BackupCategory::factory()->create([
+            'server_id' => $server->id,
+            'max_backups' => 3,
+        ]);
+
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create([
+            'server_id' => $server->id,
+            'is_processing' => true,
+        ]);
+
+        /** @var Task $task */
+        $task = Task::factory()->create([
+            'schedule_id' => $schedule->id,
+            'action' => Task::ACTION_BACKUP,
+            'payload' => "world/playerdata\nlogs/latest.log",
+            'backup_category_id' => $category->id,
+            'is_queued' => true,
+        ]);
+
+        $service = $this->mock(InitiateBackupService::class);
+        $service->expects('setIgnoredFiles')->once()->with(['world/playerdata', 'logs/latest.log'])->andReturnSelf();
+        $service->expects('setCategory')->once()->with(Mockery::on(function ($value) use ($category) {
+            return $value instanceof BackupCategory && $value->id === $category->id;
+        }))->andReturnSelf();
+        $service->expects('setBypassRateLimit')->once()->with(true)->andReturnSelf();
+        $service->expects('handle')->once()->with(
+            Mockery::on(function ($value) use ($server) {
+                return $value instanceof Server && $value->id === $server->id;
+            }),
+            null,
+            true
+        )->andReturn(Backup::factory()->make(['server_id' => $server->id]));
+
+        Bus::dispatchSync(new RunTaskJob($task));
+
+        $task->refresh();
+        $schedule->refresh();
+
+        $this->assertFalse($task->is_queued);
+        $this->assertFalse($schedule->is_processing);
     }
 
     public static function isManualRunDataProvider(): array

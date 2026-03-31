@@ -109,6 +109,35 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
         $response->assertJsonPath('attributes.backup_category.id', $category->id);
     }
 
+    public function testBackupTaskCanBeUpdatedToCategoryWhenServerLimitIsZero(): void
+    {
+        [$user, $server] = $this->generateTestAccount();
+
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
+        /** @var Task $task */
+        $task = Task::factory()->create([
+            'schedule_id' => $schedule->id,
+            'action' => Task::ACTION_BACKUP,
+            'payload' => '',
+            'backup_category_id' => null,
+        ]);
+        /** @var BackupCategory $category */
+        $category = BackupCategory::factory()->create(['server_id' => $server->id, 'max_backups' => 3]);
+
+        $this->actingAs($user)
+            ->postJson($this->link($task), [
+                'action' => 'backup',
+                'payload' => '',
+                'time_offset' => $task->time_offset,
+                'backup_category_id' => $category->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('attributes.backup_category.id', $category->id);
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'backup_category_id' => $category->id]);
+    }
+
     public function testBackupTaskRejectsForeignCategory(): void
     {
         [$user, $server] = $this->generateTestAccount();
