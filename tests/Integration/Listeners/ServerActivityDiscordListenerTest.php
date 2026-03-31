@@ -4,8 +4,7 @@ namespace Pterodactyl\Tests\Integration\Listeners;
 
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
-use Pterodactyl\Events\ActivityLogged;
-use Pterodactyl\Listeners\ServerActivityDiscordListener;
+use Pterodactyl\Jobs\MirrorServerActivityToDiscordJob;
 use Pterodactyl\Models\ActivityLog;
 use Pterodactyl\Models\User;
 use Pterodactyl\Tests\Integration\IntegrationTestCase;
@@ -40,8 +39,8 @@ class ServerActivityDiscordListenerTest extends IntegrationTestCase
 
         Http::fake([$webhook => Http::response('', 204)]);
 
-        $listener = $this->app->make(ServerActivityDiscordListener::class);
-        $listener->handle(new ActivityLogged($activity->fresh(['actor', 'subjects.subject'])));
+        $job = new MirrorServerActivityToDiscordJob($activity->id);
+        $job->handle();
 
         Http::assertSent(function (Request $request) use ($webhook, $server) {
             $payload = $request->data();
@@ -69,8 +68,8 @@ class ServerActivityDiscordListenerTest extends IntegrationTestCase
 
         Http::fake();
 
-        $listener = $this->app->make(ServerActivityDiscordListener::class);
-        $listener->handle(new ActivityLogged($activity));
+        $job = new MirrorServerActivityToDiscordJob($activity->id);
+        $job->handle();
 
         Http::assertNothingSent();
     }
