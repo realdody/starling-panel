@@ -11,6 +11,7 @@ use Pterodactyl\Observers\ServerObserver;
 use Pterodactyl\Observers\SubuserObserver;
 use Pterodactyl\Listeners\TwoFactorListener;
 use Pterodactyl\Listeners\RevocationListener;
+use Pterodactyl\Listeners\ServerActivityDiscordListener;
 use Pterodactyl\Observers\EggVariableObserver;
 use Pterodactyl\Listeners\AuthenticationListener;
 use Pterodactyl\Events\Server\Installed as ServerInstalledEvent;
@@ -29,6 +30,7 @@ class EventServiceProvider extends ServiceProvider
     protected $subscribe = [
         AuthenticationListener::class,
         RevocationListener::class,
+        ServerActivityDiscordListener::class,
         TwoFactorListener::class,
     ];
 
