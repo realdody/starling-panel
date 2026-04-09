@@ -190,14 +190,6 @@ return [
         'enabled' => env('PTERODACTYL_TELEMETRY_ENABLED', true),
     ],
 
-    'activity' => [
-        'discord' => [
-            'webhook' => env('PTERODACTYL_ACTIVITY_DISCORD_WEBHOOK'),
-            'username_template' => env('PTERODACTYL_ACTIVITY_DISCORD_USERNAME_TEMPLATE', '{{server.name}}'),
-            'timeout' => env('PTERODACTYL_ACTIVITY_DISCORD_TIMEOUT', 3),
-        ],
-    ],
-
     'features' => [
         'new_server_identifiers' => (bool) env('PTERODACTYL_USE_SERVER_IDENTIFIERS', false),
     ],
