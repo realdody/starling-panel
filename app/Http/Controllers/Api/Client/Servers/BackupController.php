@@ -90,15 +90,18 @@ class BackupController extends ClientApiController
             $action->setIsLocked($request->boolean('is_locked'));
         }
 
-        $backup = $action->handle($server, $request->input('name'))->load('category');
+        $backup = Activity::event('server:backup.start')->transaction(function ($log) use ($action, $server, $request) {
+            $server->backups()->lockForUpdate()->count();
 
-        Activity::event('server:backup.start')
-            ->subject($backup)
-            ->property([
+            $backup = $action->handle($server, $request->input('name'))->load('category');
+
+            $log->subject($backup)->property([
                 'name' => $backup->name,
                 'locked' => $request->boolean('is_locked'),
-            ])
-            ->log();
+            ]);
+
+            return $backup;
+        });
 
         return $this->fractal->item($backup)
             ->transformWith($this->getTransformer(BackupTransformer::class))
