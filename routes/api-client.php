@@ -157,9 +157,4 @@ Route::group([
         Route::post('/reinstall', [Client\Servers\SettingsController::class, 'reinstall']);
         Route::put('/docker-image', [Client\Servers\SettingsController::class, 'dockerImage']);
     });
-
-    Route::group(['prefix' => '/roles'], function () {
-        Route::get('/', [Client\Servers\ServerRoleController::class, 'index']);
-        Route::post('/', [Client\Servers\ServerRoleController::class, 'update']);
-    });
 });

@@ -281,23 +281,6 @@ class User extends Model implements
     }
 
     /**
-     * Returns all roles assigned to this user.
-     */
-    public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
-    {
-        return $this->belongsToMany(Role::class, 'role_user')
-            ->withTimestamps();
-    }
-
-    /**
-     * Check if the user has a specific role.
-     */
-    public function hasRole(Role $role): bool
-    {
-        return $this->roles()->where('roles.id', $role->id)->exists();
-    }
-
-    /**
      * Returns all the servers that a user can access by way of being the owner of the
      * server, or because they are assigned as a subuser for that server.
      *

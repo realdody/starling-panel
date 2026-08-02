@@ -397,15 +397,6 @@ class Server extends Model implements Identifiable
     }
 
     /**
-     * Returns all roles assigned to this server.
-     */
-    public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
-    {
-        return $this->belongsToMany(Role::class, 'role_server')
-            ->withTimestamps();
-    }
-
-    /**
      * Checks if the server is currently in a user-accessible state. If not, an
      * exception is raised. This should be called whenever something needs to make
      * sure the server is not in a weird state that should block user access.

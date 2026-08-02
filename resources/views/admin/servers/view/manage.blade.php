@@ -134,37 +134,6 @@
                 </div>
             </div>
         @endif
-
-        <div class="col-sm-4">
-            <div class="box box-info">
-                <div class="box-header with-border">
-                    <h3 class="box-title">Server Roles</h3>
-                </div>
-                <form action="{{ route('admin.servers.view.manage.roles', $server->id) }}" method="POST">
-                    @csrf
-                    <div class="box-body">
-                        <p class="text-muted small">Users with these roles will have access to this server.</p>
-                        @php $allRoles = \Pterodactyl\Models\Role::orderBy('name')->get(); @endphp
-                        @foreach($allRoles as $role)
-                            <div class="checkbox">
-                                <label>
-                                    <input type="checkbox" name="roles[]" value="{{ $role->id }}"
-                                        {{ $server->roles->contains($role->id) ? 'checked' : '' }} />
-                                    <strong>{{ $role->name }}</strong>
-                                    <span class="text-muted">({{ count($role->permissions) }} permissions)</span>
-                                </label>
-                            </div>
-                        @endforeach
-                        @if($allRoles->isEmpty())
-                            <p class="text-muted">No roles exist. <a href="{{ route('admin.roles.new') }}">Create one</a>.</p>
-                        @endif
-                    </div>
-                    <div class="box-footer">
-                        <button type="submit" class="btn btn-info">Update Roles</button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 
     <div class="modal fade" id="transferServerModal" tabindex="-1" role="dialog">

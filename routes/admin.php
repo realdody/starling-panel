@@ -130,7 +130,6 @@ Route::group(['prefix' => 'servers'], function () {
     Route::post('/view/{server:id}/manage/reinstall', [Admin\ServersController::class, 'reinstallServer'])->name('admin.servers.view.manage.reinstall');
     Route::post('/view/{server:id}/manage/transfer', [Admin\Servers\ServerTransferController::class, 'transfer'])->name('admin.servers.view.manage.transfer');
     Route::post('/view/{server:id}/delete', [Admin\ServersController::class, 'delete']);
-    Route::post('/view/{server:id}/roles', [Admin\ServersController::class, 'syncRoles'])->name('admin.servers.view.manage.roles');
 
     Route::patch('/view/{server:id}/details', [Admin\ServersController::class, 'setDetails']);
     Route::patch('/view/{server:id}/database', [Admin\ServersController::class, 'resetDatabasePassword']);
@@ -191,24 +190,6 @@ Route::group(['prefix' => 'mounts'], function () {
 
     Route::delete('/{mount:id}/eggs/{egg_id}', [Admin\MountController::class, 'deleteEgg']);
     Route::delete('/{mount:id}/nodes/{node_id}', [Admin\MountController::class, 'deleteNode']);
-});
-
-/*
-|--------------------------------------------------------------------------
-| Role Controller Routes
-|--------------------------------------------------------------------------
-|
-| Endpoint: /admin/roles
-|
-*/
-Route::group(['prefix' => 'roles'], function () {
-    Route::get('/', [Admin\RoleController::class, 'index'])->name('admin.roles');
-    Route::get('/new', [Admin\RoleController::class, 'create'])->name('admin.roles.new');
-    Route::get('/view/{role:id}', [Admin\RoleController::class, 'view'])->name('admin.roles.view');
-
-    Route::post('/', [Admin\RoleController::class, 'store']);
-    Route::patch('/view/{role:id}', [Admin\RoleController::class, 'update']);
-    Route::delete('/view/{role:id}', [Admin\RoleController::class, 'delete']);
 });
 
 /*
